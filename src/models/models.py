@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 from sqlalchemy.orm import DeclarativeBase, relationship
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, MetaData
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, MetaData
 
 
 class Base(DeclarativeBase):
@@ -16,8 +16,16 @@ class User(Base):
     email = Column(String(100), nullable=False, unique=True)
     github_token = Column(String)
     created_at = Column(DateTime, default=datetime.now(UTC))
+    created_by_id = Column(Integer, ForeignKey('users.id'))
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+    updated_by_id = Column(Integer, ForeignKey('users.id'))
+    deleted = Column(Boolean, default=False)
 
-    # Relacionamentos
+    # Relacionamentos adicionados
+    created_by = relationship("User", foreign_keys=[created_by_id], remote_side=[id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id], remote_side=[id])
+
+    # Relacionamentos existentes
     repositories = relationship("Repository", back_populates="user", cascade="all, delete-orphan")
     settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
     cost_history = relationship("CostHistory", back_populates="user", cascade="all, delete-orphan")
@@ -53,7 +61,17 @@ class UserSettings(Base):
     language = Column(String(10), default='en-US')
     theme = Column(String(10), default='light')
 
-    # Relacionamentos
+    created_at = Column(DateTime, default=datetime.now(UTC))
+    created_by_id = Column(Integer, ForeignKey('users.id'))
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+    updated_by_id = Column(Integer, ForeignKey('users.id'))
+    deleted = Column(Boolean, default=False)
+
+    # Relacionamentos adicionados
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+
+    # Relacionamentos existentes
     user = relationship("User", back_populates="settings")
 
     def __repr__(self):
@@ -70,8 +88,16 @@ class Repository(Base):
     link = Column(String(255), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now(UTC))
+    created_by_id = Column(Integer, ForeignKey('users.id'))
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+    updated_by_id = Column(Integer, ForeignKey('users.id'))
+    deleted = Column(Boolean, default=False)
 
-    # Relacionamentos
+    # Relacionamentos adicionados
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+
+    # Relacionamentos existentes
     user = relationship("User", back_populates="repositories")
     agents = relationship("Agent", back_populates="repository", cascade="all, delete-orphan")
     branches = relationship("Branch", back_populates="repository", cascade="all, delete-orphan")
@@ -88,8 +114,15 @@ class Branch(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
     repository_id = Column(Integer, ForeignKey('repositories.id'), nullable=False)
+    created_at = Column(DateTime, default=datetime.now(UTC))
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+    updated_by_id = Column(Integer, ForeignKey('users.id'))
+    deleted = Column(Boolean, default=False)
 
-    # Relacionamentos
+    # Relacionamentos existentes (já possuía created_by e updated_by)
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
     repository = relationship("Repository", back_populates="branches")
 
     def __repr__(self):
@@ -108,8 +141,9 @@ class AIModel(Base):
     max_tokens = Column(Integer, nullable=False)
     specialties = Column(String(255))  # Lista separada por vírgulas
     active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now(UTC))
 
-    # Relacionamentos
+    # Relacionamentos existentes
     agents = relationship("Agent", back_populates="ai_model")
 
     def __repr__(self):
@@ -127,13 +161,16 @@ class Agent(Base):
     ai_model_id = Column(Integer, ForeignKey('ai_models.id'), nullable=False)
     active = Column(Boolean, default=True)
     response_length = Column(String(20), default='medium')  # 'concise', 'medium', 'detailed'
-    created_by = Column(Integer, ForeignKey('users.id'), nullable=False)  # ID do usuário que criou o agente
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now(UTC))
-    updated_by = Column(Integer, ForeignKey('users.id'))  # ID do usuário que atualizou o agente
+    updated_by_id = Column(Integer, ForeignKey('users.id'))
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+    deleted = Column(Boolean, default=False)
 
-    # Relacionamentos
-    user = relationship("User", back_populates="agents")
+    # Relacionamentos (corrigindo created_by e updated_by)
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+    user = relationship("User", foreign_keys=[created_by_id])  # Não tem mais sentido (duplicado)
     repository = relationship("Repository", back_populates="agents")
     ai_model = relationship("AIModel", back_populates="agents")
     operations = relationship("Operation", back_populates="agent", cascade="all, delete-orphan")
@@ -159,7 +196,7 @@ class Operation(Base):
     execution_time = Column(Float)  # em segundos
     created_at = Column(DateTime, default=datetime.now(UTC))
 
-    # Relacionamentos
+    # Relacionamentos existentes
     agent = relationship("Agent", back_populates="operations")
 
     def __repr__(self):
@@ -177,11 +214,9 @@ class CostHistory(Base):
     issue_cost = Column(Float, default=0.0)
     total_cost = Column(Float, default=0.0)
 
-    # Detalhamento opcional
-    model_costs = Column(Text)  # String JSON com detalhamento por modelo
-    repository_costs = Column(Text)  # String JSON com detalhamento por repositório
+    created_at = Column(DateTime, default=datetime.now(UTC))
 
-    # Relacionamento
+    # Relacionamento existente
     user = relationship("User", back_populates="cost_history")
 
     def __repr__(self):
@@ -200,8 +235,9 @@ class RepositoryWebhook(Base):
     events = Column(String(255), nullable=False)  # pull_request,issues,etc.
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now(UTC))
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
 
-    # Relacionamento
+    # Relacionamento existente
     repository = relationship("Repository", back_populates="webhooks")
 
     def __repr__(self):
