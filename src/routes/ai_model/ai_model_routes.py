@@ -1,10 +1,13 @@
-from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Depends, status
 
-from entities.entities import AIModel
+from entities.entities import AIModel, User
 from models.models import AIModel as AIModelORM
 
 from infra.database import Database
+
+from helpers.auth import get_current_active_user
+from schemas.ai_model.schemas import ListAIModelsResponse
 
 ai_model_router = APIRouter(
     prefix="/ai-models",
@@ -12,8 +15,10 @@ ai_model_router = APIRouter(
 )
 
 
-@ai_model_router.get("/", name="AI Models", description="List all AI models")
-async def get_ai_models():
+@ai_model_router.get("/", status_code=status.HTTP_200_OK, response_model=ListAIModelsResponse)
+async def get_ai_models(
+        _: User = Depends(get_current_active_user),
+):
     """List all AI models."""
     db = Database()
     session = db.get_session()
@@ -25,8 +30,8 @@ async def get_ai_models():
 
         ai_models = [AIModel(**model.__dict__) for model in ai_models]
 
-        return JSONResponse(status_code=200, content={"ai_models": [model.model_dump() for model in ai_models]})
+        return JSONResponse(status_code=200, content={"ai_models": ai_models})
     except Exception as e:
-        return JSONResponse(status_code=500, content={"message": "Internal server error.", "error": str(e)})
+        raise HTTPException(status_code=500, detail={"message": "Internal server error.", "error": str(e)})
     finally:
         db.close_session()

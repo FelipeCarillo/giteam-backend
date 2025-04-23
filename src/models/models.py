@@ -11,27 +11,11 @@ class User(Base):
     """Modelo de usuário que representa uma conta no sistema GiTeam."""
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(50), nullable=False, unique=True)
-    email = Column(String(100), nullable=False, unique=True)
-    github_token = Column(String)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider = Column(String(50), nullable=False)
+    provider_id = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.now(UTC))
-    created_by_id = Column(Integer, ForeignKey('users.id'))
-    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
-    updated_by_id = Column(Integer, ForeignKey('users.id'))
     deleted = Column(Boolean, default=False)
-
-    # Relacionamentos adicionados
-    created_by = relationship("User", foreign_keys=[created_by_id], remote_side=[id])
-    updated_by = relationship("User", foreign_keys=[updated_by_id], remote_side=[id])
-
-    # Relacionamentos existentes
-    repositories = relationship("Repository", back_populates="user", cascade="all, delete-orphan")
-    settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    cost_history = relationship("CostHistory", back_populates="user", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return f"<User(username='{self.username}')>"
 
 
 class UserSettings(Base):
@@ -62,17 +46,9 @@ class UserSettings(Base):
     theme = Column(String(10), default='light')
 
     created_at = Column(DateTime, default=datetime.now(UTC))
-    created_by_id = Column(Integer, ForeignKey('users.id'))
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
-    updated_by_id = Column(Integer, ForeignKey('users.id'))
-    deleted = Column(Boolean, default=False)
 
-    # Relacionamentos adicionados
-    created_by = relationship("User", foreign_keys=[created_by_id])
-    updated_by = relationship("User", foreign_keys=[updated_by_id])
-
-    # Relacionamentos existentes
-    user = relationship("User", back_populates="settings")
+    user = relationship("User", foreign_keys=[user_id])
 
     def __repr__(self):
         return f"<UserSettings(user_id={self.user_id})>"
@@ -98,10 +74,9 @@ class Repository(Base):
     updated_by = relationship("User", foreign_keys=[updated_by_id])
 
     # Relacionamentos existentes
-    user = relationship("User", back_populates="repositories")
-    agents = relationship("Agent", back_populates="repository", cascade="all, delete-orphan")
-    branches = relationship("Branch", back_populates="repository", cascade="all, delete-orphan")
-    webhooks = relationship("RepositoryWebhook", back_populates="repository", cascade="all, delete-orphan")
+    agents = relationship("Agent", back_populates="repository")
+    branches = relationship("Branch", back_populates="repository")
+    webhooks = relationship("RepositoryWebhook", back_populates="repository")
 
     def __repr__(self):
         return f"<Repository(name='{self.name}')>"
@@ -116,13 +91,9 @@ class Branch(Base):
     repository_id = Column(Integer, ForeignKey('repositories.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now(UTC))
     created_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
-    updated_by_id = Column(Integer, ForeignKey('users.id'))
     deleted = Column(Boolean, default=False)
 
-    # Relacionamentos existentes (já possuía created_by e updated_by)
     created_by = relationship("User", foreign_keys=[created_by_id])
-    updated_by = relationship("User", foreign_keys=[updated_by_id])
     repository = relationship("Repository", back_populates="branches")
 
     def __repr__(self):
@@ -136,15 +107,12 @@ class AIModel(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
     provider = Column(String(50), nullable=False)
-    prompt_token_cost = Column(Float, nullable=False)  # Custo por token de prompt (entrada)
-    completion_token_cost = Column(Float, nullable=False)  # Custo por token de completion (saída)
+    prompt_token_cost = Column(Float, nullable=False)
+    completion_token_cost = Column(Float, nullable=False)
     max_tokens = Column(Integer, nullable=False)
-    specialties = Column(String(255))  # Lista separada por vírgulas
+    specialties = Column(String(255))
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now(UTC))
-
-    # Relacionamentos existentes
-    agents = relationship("Agent", back_populates="ai_model")
 
     def __repr__(self):
         return f"<AIModel(name='{self.name}', provider='{self.provider}')>"
@@ -167,16 +135,11 @@ class Agent(Base):
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
     deleted = Column(Boolean, default=False)
 
-    # Relacionamentos (corrigindo created_by e updated_by)
     created_by = relationship("User", foreign_keys=[created_by_id])
     updated_by = relationship("User", foreign_keys=[updated_by_id])
-    user = relationship("User", foreign_keys=[created_by_id])  # Não tem mais sentido (duplicado)
-    repository = relationship("Repository", back_populates="agents")
-    ai_model = relationship("AIModel", back_populates="agents")
+    repository = relationship("Repository", back_populates="agents", foreign_keys=[repository_id])
+    ai_model = relationship("AIModel", foreign_keys=[ai_model_id])
     operations = relationship("Operation", back_populates="agent", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return f"<Agent(name='{self.name}', function='{self.function}')>"
 
 
 class Operation(Base):
@@ -197,7 +160,7 @@ class Operation(Base):
     created_at = Column(DateTime, default=datetime.now(UTC))
 
     # Relacionamentos existentes
-    agent = relationship("Agent", back_populates="operations")
+    agent = relationship("Agent", back_populates="operations", foreign_keys=[agent_id])
 
     def __repr__(self):
         return f"<Operation(action='{self.action}', cost='{self.cost}')>"
@@ -217,7 +180,7 @@ class CostHistory(Base):
     created_at = Column(DateTime, default=datetime.now(UTC))
 
     # Relacionamento existente
-    user = relationship("User", back_populates="cost_history")
+    user = relationship("User", foreign_keys=[user_id])
 
     def __repr__(self):
         return f"<CostHistory(month='{self.month}', total_cost='{self.total_cost}')>"
@@ -238,7 +201,7 @@ class RepositoryWebhook(Base):
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
 
     # Relacionamento existente
-    repository = relationship("Repository", back_populates="webhooks")
+    repository = relationship("Repository", back_populates="webhooks", foreign_keys=[repository_id])
 
     def __repr__(self):
         return f"<RepositoryWebhook(id={self.id}, events='{self.events}')>"

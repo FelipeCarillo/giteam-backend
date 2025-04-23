@@ -6,9 +6,10 @@ from pydantic import BaseModel, EmailStr
 class User(BaseModel):
     """Pydantic model corresponding to User SQLAlchemy model."""
     id: Optional[int] = None
-    username: str
+    provider: str
+    name: str
     email: EmailStr
-    github_token: Optional[str] = None
+    avatar_url: Optional[str] = None
     created_at: Optional[datetime] = None
 
     # Relationships - will be populated when needed
@@ -34,8 +35,6 @@ class UserSettings(BaseModel):
     daily_limit_action: str = "notify_only"
     weekly_limit_action: str = "notify_only"
     monthly_limit_action: str = "disable_agents"
-    language: str = "en-US"
-    theme: str = "light"
 
     # Relationships
     user: Optional[User] = None
