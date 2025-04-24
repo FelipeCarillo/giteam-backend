@@ -7,7 +7,7 @@ from models.models import AIModel as AIModelORM
 from infra.database import Database
 
 from helpers.auth import get_current_active_user
-from schemas.ai_model.schemas import ListAIModelsResponse
+from schemas.ai_model import ListAIModelsResponse
 
 ai_model_router = APIRouter(
     prefix="/ai-models",
@@ -26,7 +26,7 @@ async def get_ai_models(
     try:
         ai_models = session.query(AIModelORM).all()
         if not ai_models:
-            return JSONResponse(status_code=204, content={"message": "No AI models found."})
+            return JSONResponse(status_code=204, content=ListAIModelsResponse(message="No AI models found."))
 
         ai_models = [AIModel(**model.__dict__) for model in ai_models]
 

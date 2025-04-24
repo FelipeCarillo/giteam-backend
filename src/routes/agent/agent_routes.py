@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from models.models import Agent as AgentORM
-from schemas.agent.agent_schemas import UpdateAgent
+from schemas.agent.schemas import UpdateAgent
 
 from infra.database import Database
 
