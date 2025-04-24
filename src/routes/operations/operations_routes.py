@@ -7,7 +7,7 @@ from models.models import Operation as OperationORM
 from infra.database import Database
 
 from helpers.auth import get_current_active_user
-from schemas.operation.schemas import ListOperationsResponse
+from schemas.operations.schemas import ListOperationsResponse
 
 operation_router = APIRouter(
     prefix="/operations",
