@@ -14,8 +14,8 @@ agent_router = APIRouter(
 
 @agent_router.put(
     "/{agent_id}",
-    name="Agents",
-    description="List all agents",
+    name="Update Agent",
+    description="Update a specific agent.",
 )
 async def update_agent(
         agent_id: int,
