@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from entities.entities import User
+from helpers.auth import get_current_active_user
 from models.models import Agent as AgentORM
-from schemas.agent.agent_schemas import UpdateAgent
+from schemas.agent.schemas import UpdateAgent
 
 from infra.database import Database
 
@@ -20,6 +22,7 @@ agent_router = APIRouter(
 async def update_agent(
         agent_id: int,
         agent: UpdateAgent,
+        current_user: User = Depends(get_current_active_user), #nossa rota depende de chamar essa função que pega o usuário atual
 ):
     """Update an agent."""
     db = Database()
@@ -28,7 +31,8 @@ async def update_agent(
     try:
         agent_orm = session.query(AgentORM).filter(
             AgentORM.id == agent_id and
-            AgentORM.created_by == agent.created_by
+            AgentORM.created_by_id == current_user.id and
+            AgentORM.deleted == False
         ).first()
         if not agent_orm:
             return JSONResponse(status_code=204, content={"message": "Agent not found."})
@@ -36,6 +40,41 @@ async def update_agent(
         # Update the agent
         for key, value in agent.model_dump().items():
             setattr(agent_orm, key, value)
+
+        session.commit()
+
+        return JSONResponse(status_code=200, content={"message": "Agent updated successfully."})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"message": "Internal server error.", "error": str(e)})
+    finally:
+        db.close_session()
+
+
+
+@agent_router.delete(
+        "/{agent_id}",
+    name="Delete Agent",
+    description="Delete a specific agent.",
+)
+async def delete_agent(
+        agent_id: int,
+        current_user: User = Depends(get_current_active_user),
+):
+    """Deletes an agent."""
+    db = Database()
+    session = db.get_session()
+
+    try:
+        agent_orm = session.query(AgentORM).filter(
+            AgentORM.id == agent_id and
+            AgentORM.created_by_id == current_user.id and
+            AgentORM.deleted == False
+        ).first()
+        if not agent_orm:
+            return JSONResponse(status_code=204, content={"message": "Agent not found."})
+
+        # delete agent
+        setattr(agent_orm, "deleted", True)
 
         session.commit()
 
