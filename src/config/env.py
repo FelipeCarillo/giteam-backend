@@ -12,7 +12,7 @@ class Env(BaseModel):
     # Github OAuth
     GITHUB_CLIENT_ID: str = os.getenv("GITHUB_CLIENT_ID")
     GITHUB_CLIENT_SECRET: str = os.getenv("GITHUB_CLIENT_SECRET")
-    GITHUB_REDIRECT_URI: str = os.getenv("GITHUB_REDIRECT_URI", "http://localhost:8000/api/auth/callback")
+    GITHUB_REDIRECT_URI: str = os.getenv("GITHUB_REDIRECT_URI", "http://localhost:8000/api/auth/callback/github")
     GITHUB_SCOPE: str = os.getenv("GITHUB_SCOPE", "user,repo")
 
     # Frontend

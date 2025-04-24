@@ -1,7 +1,12 @@
 httpx
+Authlib
 uvicorn
 pydantic
 psycopg2
 sqlalchemy
 fastapi[all]
 python-dotenv
+
+requests
+PyJWT
+starlette

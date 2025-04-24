@@ -1,6 +1,8 @@
 from datetime import datetime, UTC
 from sqlalchemy.orm import DeclarativeBase, relationship
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, MetaData
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, MetaData, Enum
+
+from helpers.enums import PROVIDER
 
 
 class Base(DeclarativeBase):
@@ -12,8 +14,10 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    provider = Column(String(50), nullable=False)
+    provider = Column(Enum(PROVIDER), nullable=False)
     provider_id = Column(String, nullable=False)
+    name = Column(String(100), nullable=False)
+    email = Column(String(100), nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.now(UTC))
     deleted = Column(Boolean, default=False)
 
