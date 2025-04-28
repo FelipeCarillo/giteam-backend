@@ -1,6 +1,6 @@
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, HTTPException, Depends, status
-
+import re
 from entities.entities import CostHistory, User
 from ecg_models.models import CostHistory as CostHistoryORM
 
@@ -24,11 +24,19 @@ async def get_cost_history(
     session = db.get_session()
 
     try:
-        query = session.query(CostHistoryORM).filter(CostHistoryORM.user_id == current_user.id)
         if month:
-            query = query.filter(CostHistoryORM.month == month)
-        
-        cost_history = query.all()
+            # Validação regex
+            pattern = r"^\d{4}-(0[1-9]|1[0-2])$"
+            if not re.match(pattern, month):
+                raise HTTPException(status_code=400, detail="Formato inválido para 'month'. Use 'yyyy-mm'.")
+
+        # Construindo o filtro
+        filters = [CostHistoryORM.user.has(id=current_user.id)]
+        if month:
+            filters.append(CostHistoryORM.month == month)
+
+        cost_history = session.query(CostHistoryORM).filter(*filters).first()
+
         if not cost_history:
             return JSONResponse(status_code=204, content={"message": "No cost history found."})
 
