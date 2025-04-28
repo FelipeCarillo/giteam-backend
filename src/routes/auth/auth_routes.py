@@ -40,9 +40,11 @@ async def callback(
         user_orm = session.query(UserORM).filter(UserORM.provider_id == str(github_user["id"])).first()
 
         if user_orm is None:
+            email = await APIGithub.get_user_primary_email(access_token)
+
             user_orm = UserORM(
                 name=github_user["name"],
-                email=github_user["email"],
+                email=email,
                 provider=PROVIDER.GITHUB,
                 provider_id=github_user["id"],
             )

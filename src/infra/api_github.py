@@ -46,7 +46,7 @@ class APIGithub:
             raise Exception(f"Error getting user info: {e}")
 
     @staticmethod
-    async def get_user_emails(token: str) -> EmailStr:
+    async def get_user_primary_email(token: str) -> EmailStr:
         try:
             async with httpx.AsyncClient() as client:
                 emails_response = await client.get(
