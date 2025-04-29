@@ -24,6 +24,8 @@ class User(Base):
 
     deleted = Column(Boolean, default=False)
 
+    settings = relationship("UserSettings", back_populates="user", uselist=False)
+
 
 class UserSettings(Base):
     """Configurações e preferências do usuário."""
@@ -213,10 +215,10 @@ class RepositoryWebhook(Base):
 
     id = Column(Integer, primary_key=True)
     repository_id = Column(Integer, ForeignKey('repositories.id'), nullable=False)
-    webhook_id = Column(String(50), nullable=False)  # ID do webhook no GitHub
-    webhook_url = Column(String(255), nullable=False)  # URL de callback
-    webhook_secret = Column(String(100), nullable=False)  # Secret para validação
-    events = Column(String(255), nullable=False)  # pull_request,issues,etc.
+    webhook_id = Column(String(50), nullable=False)
+    webhook_url = Column(String(255), nullable=False)
+    webhook_secret = Column(String(100), nullable=False)
+    events = Column(String(255), nullable=False)
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now(UTC))
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))

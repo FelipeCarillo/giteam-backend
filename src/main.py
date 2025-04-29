@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.auth.auth_routes import auth_router
+from routes.user.user_routes import user_router
 from routes.agent.agent_routes import agent_router
 from routes.ai_model.ai_model_routes import ai_model_router
 
@@ -19,6 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(user_router)
 app.include_router(auth_router)
 app.include_router(agent_router)
 app.include_router(ai_model_router)
