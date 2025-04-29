@@ -1,11 +1,11 @@
 from fastapi.responses import RedirectResponse, JSONResponse
-from fastapi import HTTPException, status, APIRouter, Request, Form, Depends, Response
+from fastapi import status, APIRouter, Request, Form
 
 from config.env import env
-from helpers.enums import PROVIDER
-from models.models import User as UserORM
 from infra.database import Database
+from helpers.enums import AuthProvider
 from infra.api_github import APIGithub
+from models.models import User as UserORM, UserSettings as UserSettingsORM
 
 auth_router = APIRouter(
     prefix="/auth",
@@ -17,8 +17,7 @@ auth_router = APIRouter(
 async def login_github(request: Request):
     return RedirectResponse(
         f"https://github.com/login/oauth/authorize?client_id={env.GITHUB_CLIENT_ID}&"
-        f"redirect_uri={env.GITHUB_REDIRECT_URI}&scope={env.GITHUB_SCOPE}&state={request.query_params.get('state')}&"
-        f"in_docs={request.state is not None}",
+        f"redirect_uri={env.GITHUB_REDIRECT_URI}&scope={env.GITHUB_SCOPE}&state={request.query_params.get('state')}",
         status_code=302
     )
 
@@ -27,7 +26,6 @@ async def login_github(request: Request):
 async def callback(
         code: str,
         state: str,
-        in_docs: bool = False,
 ):
     try:
         access_token = await APIGithub.get_access_token(code, env.GITHUB_REDIRECT_URI)
@@ -45,25 +43,32 @@ async def callback(
             user_orm = UserORM(
                 name=github_user["name"],
                 email=email,
-                provider=PROVIDER.GITHUB,
+                provider=AuthProvider.GITHUB,
                 provider_id=github_user["id"],
             )
             session.add(user_orm)
             session.commit()
             session.refresh(user_orm)
 
+            user_settings_orm = UserSettingsORM(
+                user_id=user_orm.id,
+                telegram_chat_id=None,
+            )
+            session.add(user_settings_orm)
+            session.commit()
+
         db.close_session()
 
-        if in_docs:
+        if not env.FRONTEND_URL:
             return RedirectResponse(
                 f"/api/docs/oauth2-redirect?code={access_token}&state={state}",
                 status_code=302
             )
-        else:
-            return RedirectResponse(
-                f"{env.FRONTEND_URL}/auth/callback?code={access_token}",
-                status_code=302
-            )
+
+        return RedirectResponse(
+            f"{env.FRONTEND_URL}/auth/callback?code={access_token}",
+            status_code=302
+        )
 
     except Exception as e:
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": str(e)})

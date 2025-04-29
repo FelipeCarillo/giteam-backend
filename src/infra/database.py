@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from config.env import env
 
@@ -21,16 +21,13 @@ class Database:
     def create_all(self):
         """Create all tables in the database."""
         from models.models import Base
+        session = self.get_session()
+        session.execute(text("CREATE SCHEMA IF NOT EXISTS giteams"))
+        session.commit()
+        session.close()
         Base.metadata.create_all(self._engine)
 
     def drop_all(self):
         """Drop all tables in the database."""
         from models.models import Base
         Base.metadata.drop_all(self._engine)
-
-
-if __name__ == "__main__":
-    db = Database()
-    db.drop_all()
-    db.create_all()
-    print("Database tables created successfully.")

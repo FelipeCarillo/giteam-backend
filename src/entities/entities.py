@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, EmailStr
 
+from helpers.enums import AIModelProvider
+
 
 class User(BaseModel):
     """Pydantic model corresponding to User SQLAlchemy model."""
@@ -11,6 +13,7 @@ class User(BaseModel):
     email: EmailStr
     avatar_url: Optional[str] = None
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     # Relationships - will be populated when needed
     repositories: List["Repository"] = []
@@ -80,15 +83,26 @@ class AIModel(BaseModel):
     """Pydantic model corresponding to AIModel SQLAlchemy model."""
     id: Optional[int] = None
     name: str
-    provider: str
+    provider: AIModelProvider
     prompt_token_cost: float
     completion_token_cost: float
-    max_tokens: int
     specialties: Optional[str] = None
     active: bool = True
 
     # Relationships
     agents: List["Agent"] = []
+
+    class Config:
+        from_attributes = True
+
+
+class ProviderSecretKey(BaseModel):
+    """Pydantic model corresponding to ProviderSecretKey SQLAlchemy model."""
+    id: Optional[int] = None
+    provider: AIModelProvider
+    secret_key: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 
 
 class Env(BaseModel):
+    # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL")
 
     # Github OAuth
@@ -16,7 +18,7 @@ class Env(BaseModel):
     GITHUB_SCOPE: str = os.getenv("GITHUB_SCOPE", "user,repo")
 
     # Frontend
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL")
 
     # API URL
     API_URL: str = os.getenv("API_URL", "http://localhost:8000")
