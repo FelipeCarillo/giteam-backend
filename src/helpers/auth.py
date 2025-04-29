@@ -1,10 +1,11 @@
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2AuthorizationCodeBearer
 
+from entities.entities import User
+from models.models import User as UserORM
+
 from infra.database import Database
 from infra.api_github import APIGithub
-from models.models import User as UserORM
-from entities.entities import User as UserEntity
 
 oauth2_scheme = OAuth2AuthorizationCodeBearer(
     authorizationUrl="http://localhost:8000/api/auth/login/github",
@@ -12,7 +13,7 @@ oauth2_scheme = OAuth2AuthorizationCodeBearer(
 )
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserEntity:
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Credenciais inválidas",
@@ -24,15 +25,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserEntity:
     db = Database()
     session = db.get_session()
 
-    user_orm = session.query(UserORM).filter(UserORM.provider_id == str(user['id'])).first()
-    db.close_session()
+    user_orm: UserORM = session.query(UserORM).filter(
+        UserORM.deleted == False and
+        UserORM.provider_id == str(user['id'])
+    ).first()
 
     if user_orm is None:
         raise credentials_exception
 
-    user = UserEntity(**user_orm.__dict__)
+    user = User(
+        **user_orm.__dict__,
+        avatar_url=user['avatar_url'],
+        settings={**user_orm.settings.__dict__} if user_orm.settings else None,
+    )
+
+    db.close_session()
+
     return user
 
 
-async def get_current_active_user(current_user: UserEntity = Depends(get_current_user)) -> UserEntity:
+async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     return current_user

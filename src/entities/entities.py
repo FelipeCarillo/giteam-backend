@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional
 from pydantic import BaseModel, EmailStr
 
 from helpers.enums import AIModelProvider
@@ -15,10 +15,7 @@ class User(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    # Relationships - will be populated when needed
-    repositories: List["Repository"] = []
     settings: Optional["UserSettings"] = None
-    cost_history: List["CostHistory"] = []
 
     class Config:
         from_attributes = True
@@ -38,9 +35,6 @@ class UserSettings(BaseModel):
     daily_limit_action: str = "notify_only"
     weekly_limit_action: str = "notify_only"
     monthly_limit_action: str = "disable_agents"
-
-    # Relationships
-    user: Optional[User] = None
 
     class Config:
         from_attributes = True
