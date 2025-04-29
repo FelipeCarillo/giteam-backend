@@ -2,7 +2,7 @@ from datetime import datetime, UTC
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, MetaData, Enum
 
-from helpers.enums import PROVIDER
+from helpers.enums import AuthProvider, AIModelProvider
 
 
 class Base(DeclarativeBase):
@@ -14,11 +14,14 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    provider = Column(Enum(PROVIDER), nullable=False)
+    provider = Column(Enum(AuthProvider), nullable=False)
     provider_id = Column(String, nullable=False)
     name = Column(String(100), nullable=False)
     email = Column(String(100), nullable=False, unique=True)
+
     created_at = Column(DateTime, default=datetime.now(UTC))
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+
     deleted = Column(Boolean, default=False)
 
 
@@ -26,7 +29,7 @@ class UserSettings(Base):
     """Configurações e preferências do usuário."""
     __tablename__ = 'user_settings'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
 
     # Notificações
@@ -44,10 +47,6 @@ class UserSettings(Base):
     daily_limit_action = Column(String(20), default='notify_only')
     weekly_limit_action = Column(String(20), default='notify_only')
     monthly_limit_action = Column(String(20), default='disable_agents')
-
-    # Preferências
-    language = Column(String(10), default='en-US')
-    theme = Column(String(10), default='light')
 
     created_at = Column(DateTime, default=datetime.now(UTC))
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
@@ -110,16 +109,34 @@ class AIModel(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
-    provider = Column(String(50), nullable=False)
+    specialties_us = Column(String)
+    specialties_br = Column(String)
+    provider = Column(Enum(AIModelProvider), nullable=False)
     prompt_token_cost = Column(Float, nullable=False)
     completion_token_cost = Column(Float, nullable=False)
-    max_tokens = Column(Integer, nullable=False)
-    specialties = Column(String(255))
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now(UTC))
 
     def __repr__(self):
         return f"<AIModel(name='{self.name}', provider='{self.provider}')>"
+
+
+class ProviderSecretKey(Base):
+    """Chave secreta para autenticação com provedores de IA."""
+    __tablename__ = 'ai_models_secret_key'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    provider = Column(Enum(AIModelProvider), nullable=False)
+    secret_key = Column(String, nullable=False)
+
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    created_at = Column(DateTime, default=datetime.now(UTC))
+    updated_by_id = Column(Integer, ForeignKey('users.id'))
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
 
 
 class Agent(Base):
