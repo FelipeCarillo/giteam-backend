@@ -63,7 +63,7 @@ class Repository(Base):
     """Repositório GitHub conectado à plataforma."""
     __tablename__ = 'repositories'
 
-    id = Column(Integer)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now(UTC))
     created_by_id = Column(Integer, ForeignKey('users.id'))

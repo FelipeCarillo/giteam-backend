@@ -126,7 +126,7 @@ class APIGithub:
             repository.branches = [
                 Branch(name=branch, repository_id=repo_json["id"]) for branch in branches
             ]
-            repository.webhooks = await APIGithub.get_webhooks(token, repository)
+            repository.webhooks = await APIGithub.get_webhooks(token, repository.id)
 
             return repository
 
@@ -250,10 +250,11 @@ class APIGithub:
 
     @staticmethod
     @handle_github_api_exceptions
-    async def get_webhooks(token: str, repository: Repository, with_secrets: bool = False) -> List[RepositoryWebhook]:
+    async def get_webhooks(token: str, repo_id: int, with_secrets: bool = False) -> List[RepositoryWebhook]:
         async with httpx.AsyncClient() as client:
+            full_name = await APIGithub.get_repo_full_name(token, repo_id)
             webhooks_response = await client.get(
-                f"https://api.github.com/repos/{repository.full_name}/hooks",
+                f"https://api.github.com/repos/{full_name}/hooks",
                 headers={"Authorization": f"token {token}"},
             )
             webhooks_response.raise_for_status()
@@ -264,7 +265,7 @@ class APIGithub:
                 RepositoryWebhook(
                     id=webhook["id"],
                     events=webhook["events"],
-                    repository_id=repository.id,
+                    repository_id=repo_id,
                     secret=webhook["config"].get("secret") if with_secrets else None,
                 )
                 for webhook in webhooks_json

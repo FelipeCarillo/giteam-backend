@@ -7,8 +7,10 @@ from models import AIModel as AIModelORM
 
 from infra.database import Database
 
+from helpers.enums import AIModelProvider
 from helpers.auth import get_current_active_user
-from schemas.ai_model import ListAIModelsResponse
+
+from schemas.ai_model import ListAIModelsResponse, ListAIModelsProvidersResponse
 
 ai_model_router = APIRouter(
     prefix="/ai-models",
@@ -41,3 +43,24 @@ async def get_ai_models(
         raise HTTPException(status_code=500, detail={"message": "Internal server error.", "error": str(e)})
     finally:
         db.close_session()
+
+
+@ai_model_router.get(
+    "/providers",
+    name="Get AI model providers",
+    status_code=status.HTTP_200_OK,
+    response_model=ListAIModelsProvidersResponse,
+)
+async def get_ai_model_providers(
+        _: User = Depends(get_current_active_user),
+):
+    """List all AI model providers."""
+
+    try:
+        providers = [provider.value for provider in AIModelProvider]
+        return ListAIModelsProvidersResponse(
+            message="AI model providers retrieved successfully.",
+            providers=providers,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"message": "Internal server error.", "error": str(e)})

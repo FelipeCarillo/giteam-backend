@@ -4,17 +4,19 @@ from typing import List
 from starlette.responses import JSONResponse
 from fastapi import APIRouter, HTTPException, Depends, status
 
-from helpers.enums import AgentFunction
 from infra.database import Database
 from infra.api_github import APIGithub
 
 from entities import Repository, User, Agent, RepositoryWebhook
-from models import Repository as RepositoryORM, Agent as AgentORM
 
+from models import Repository as RepositoryORM, Agent as AgentORM, RepositoryWebhook as RepositoryWebhookORM
+
+from helpers.enums import AgentFunction
 from helpers.errors import handle_exceptions
-from helpers.auth import get_current_active_user, get_auth_token
+from helpers.auth import get_current_active_user, oauth2_scheme
+
 from schemas.http import ResponseModel
-from schemas.repository import ListRepositoryResponse, CreateRepositoryRequest
+from schemas.repository import ListRepositoryResponse, CreateRepositoryRequest, CreateAgentRequest
 
 repositories_router = APIRouter(
     prefix="/repositories",
@@ -22,6 +24,7 @@ repositories_router = APIRouter(
 )
 
 
+@handle_exceptions
 @repositories_router.get(
     "/",
     name="List Repositories",
@@ -29,9 +32,8 @@ repositories_router = APIRouter(
     status_code=status.HTTP_200_OK,
     response_model=List[Repository],
 )
-@handle_exceptions
 async def list_repositories(
-        token: str = Depends(get_auth_token),
+        token: str = Depends(oauth2_scheme),
         current_user: User = Depends(get_current_active_user),
 ):
     """List all repositories."""
@@ -45,7 +47,7 @@ async def list_repositories(
         ).all()
 
         if not repositories_orm:
-            return JSONResponse(status_code=204, content={"message": "No repositories found."})
+            return []
 
         repositories = []
         for repo in repositories_orm:
@@ -68,10 +70,13 @@ async def list_repositories(
             message="Repositories listed successfully.",
             repositories=repositories
         )
+    except Exception as error:
+        return error
     finally:
         db.close_session()
 
 
+@handle_exceptions
 @repositories_router.post(
     "/",
     name="Create Repository",
@@ -79,10 +84,9 @@ async def list_repositories(
     status_code=status.HTTP_201_CREATED,
     response_model=ResponseModel
 )
-@handle_exceptions
 async def create_repository(
         body: CreateRepositoryRequest,
-        token: str = Depends(get_auth_token),
+        token: str = Depends(oauth2_scheme),
         current_user: User = Depends(get_current_active_user),
 ):
     """Create a new repository."""
@@ -167,7 +171,12 @@ async def create_repository(
                 repo_id=repository.id,
                 agent_function=agent.function
             )
-        repository.webhooks = webhooks
+        for webhook in webhooks:
+            webhook_orm = RepositoryWebhookORM(
+                id=webhook.id,
+                repository_id=repository.id
+            )
+            repository.webhooks.append(webhook_orm)
 
         session.add(repository)
         session.commit()
@@ -185,6 +194,192 @@ async def create_repository(
                     webhook_id=webhook.id
                 )
         session.rollback()
-        raise error
+        return error
+    finally:
+        db.close_session()
+
+
+@handle_exceptions
+@repositories_router.delete(
+    "/{repository_id}",
+    name="Delete Repository",
+    description="Delete a repository.",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseModel
+)
+async def delete_repository(
+        repository_id: int,
+        token: str = Depends(oauth2_scheme),
+        current_user: User = Depends(get_current_active_user),
+):
+    """Delete a repository."""
+    db = Database()
+    session = db.get_session()
+
+    try:
+        repository_orm = session.query(RepositoryORM).filter(
+            RepositoryORM.id == repository_id,
+            RepositoryORM.created_by_id == current_user.id,
+            RepositoryORM.deleted == False
+        ).first()
+
+        if not repository_orm:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Repository not found."
+            )
+
+        for webhook in repository_orm.webhooks:
+            await APIGithub.delete_webhook(
+                token,
+                repo_id=repository_orm.id,
+                webhook_id=webhook.id
+            )
+
+        repository_orm.deleted = True
+        session.commit()
+
+        logging.info(f"Repository {repository_id} deleted from the database.")
+
+        return ResponseModel(message="Repository deleted successfully.")
+    except Exception as error:
+        return error
+    finally:
+        db.close_session()
+
+
+@handle_exceptions
+@repositories_router.post(
+    "/{repository_id}/agents",
+    name="Add Agent to Repository",
+    description="Add an agent to a repository.",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ResponseModel
+)
+async def add_agent_to_repository(
+        repository_id: int,
+        body: CreateAgentRequest,
+        token: str = Depends(oauth2_scheme),
+        current_user: User = Depends(get_current_active_user),
+):
+    """Add an agent to a repository."""
+    db = Database()
+    session = db.get_session()
+
+    try:
+        repository_orm = session.query(RepositoryORM).filter(
+            RepositoryORM.id == repository_id,
+            RepositoryORM.created_by_id == current_user.id,
+            RepositoryORM.deleted == False
+        ).first()
+
+        if not repository_orm:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Repository not found."
+            )
+
+        agent_exists = session.query(AgentORM).filter(
+            AgentORM.name == body.name,
+            AgentORM.repository_id == repository_id
+        ).first()
+        if agent_exists:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Agent already exists in this repository."
+            )
+
+        if body.function == AgentFunction.BOTH and len(repository_orm.agents) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Agent function 'BOTH' cannot be used with other functions."
+            )
+        functions = [agent.function for agent in repository_orm.agents]
+        if body.function in functions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Agent function must be unique."
+            )
+
+        agent = AgentORM(
+            name=body.name,
+            function=body.function,
+            response_length=body.response_length,
+            ai_model_id=body.ai_model_id,
+            repository_id=repository_orm.id
+        )
+
+        webhooks = await APIGithub.create_webhooks(
+            token,
+            repo_id=repository_orm.id,
+            agent_function=body.function
+        )
+
+        for webhook in webhooks:
+            webhook_orm = RepositoryWebhookORM(
+                id=webhook.id,
+                url=webhook.url,
+                events=webhook.events,
+                active=webhook.active,
+                agent_id=agent.id
+            )
+            repository_orm.webhooks.append(webhook_orm)
+
+        repository_orm.agents.append(agent)
+        session.commit()
+
+        return ResponseModel(message="Agent added successfully.")
+    except Exception as error:
+        return error
+    finally:
+        db.close_session()
+
+
+@handle_exceptions
+@repositories_router.patch(
+    "/{repository_id}",
+    name="Activate/Deactivate Repository",
+    description="Activate or deactivate a repository.",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseModel
+)
+async def activate_deactivate_repository(
+        repository_id: int,
+        token: str = Depends(oauth2_scheme),
+        current_user: User = Depends(get_current_active_user),
+):
+    """Activate or deactivate a repository."""
+    db = Database()
+    session = db.get_session()
+
+    try:
+        repository_orm = session.query(RepositoryORM).filter(
+            RepositoryORM.id == repository_id,
+            RepositoryORM.created_by_id == current_user.id,
+            RepositoryORM.deleted == False
+        ).first()
+
+        if not repository_orm:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Repository not found."
+            )
+
+        repository_orm.active = not repository_orm.active
+        session.commit()
+
+        for webhook in repository_orm.webhooks:
+            await APIGithub.change_status_webhook(
+                token,
+                repo_full_name=repository_orm.full_name,
+                webhook_id=webhook.id,
+            )
+
+        if repository_orm.active:
+            logging.info(f"Repository {repository_orm.id} activated.")
+        else:
+            logging.info(f"Repository {repository_orm.id} deactivated.")
+
+        return ResponseModel(message="Repository status changed successfully.")
     finally:
         db.close_session()
