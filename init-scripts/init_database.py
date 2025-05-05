@@ -1,6 +1,6 @@
-from helpers.enums import AIModelProvider
-from ecg_models.models import AIModel
+from models import AIModel
 from infra.database import Database
+from helpers.enums import AIModelProvider
 
 
 def generate_models():

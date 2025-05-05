@@ -27,20 +27,23 @@ user_router = APIRouter(
 )
 
 
-@user_router.get("/", status_code=status.HTTP_200_OK, response_model=MeResponse)
 @handle_exceptions
+@user_router.get("/", status_code=status.HTTP_200_OK, response_model=MeResponse)
 async def get_user(
         current_user: User = Depends(get_current_active_user),
 ):
     """Get current user information."""
-    return MeResponse(
-        message="User information retrieved successfully.",
-        user=current_user
-    )
+    try:
+        return MeResponse(
+            message="User information retrieved successfully.",
+            user=current_user
+        )
+    except Exception as error:
+        return error
 
 
-@user_router.delete("/", status_code=status.HTTP_200_OK, response_model=ResponseModel)
 @handle_exceptions
+@user_router.delete("/", status_code=status.HTTP_200_OK, response_model=ResponseModel)
 async def delete_user(
         current_user: User = Depends(get_current_active_user),
 ):
@@ -59,6 +62,8 @@ async def delete_user(
         session.commit()
 
         return ResponseModel(message="User deleted successfully.")
+    except Exception as error:
+        return error
 
     finally:
         if session:
@@ -66,8 +71,8 @@ async def delete_user(
             session.close()
 
 
-@user_router.put("/", status_code=status.HTTP_200_OK, response_model=ResponseModel)
 @handle_exceptions
+@user_router.put("/", status_code=status.HTTP_200_OK, response_model=ResponseModel)
 async def update_user(
         body: UpdateUserRequest,
         current_user: User = Depends(get_current_active_user),
@@ -99,14 +104,16 @@ async def update_user(
         session.commit()
 
         return ResponseModel(message="User updated successfully.")
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()
             session.close()
 
 
-@user_router.post("/provider/secret-key", status_code=status.HTTP_201_CREATED, response_model=ResponseModel)
 @handle_exceptions
+@user_router.post("/provider/secret-key", status_code=status.HTTP_201_CREATED, response_model=ResponseModel)
 async def create_secret_key(
         body: ProviderSecretKeySchema,
         current_user: User = Depends(get_current_active_user),
@@ -138,14 +145,16 @@ async def create_secret_key(
             message="Secret key created successfully.",
             provider_secret_key=[ProviderSecretKeySchema(**secret_key_orm.__dict__)]
         )
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()
             session.close()
 
 
-@user_router.get("/provider/secret-key", status_code=status.HTTP_200_OK, response_model=ProviderSecretKeyResponse)
 @handle_exceptions
+@user_router.get("/provider/secret-key", status_code=status.HTTP_200_OK, response_model=ProviderSecretKeyResponse)
 async def get_secret_keys(
         current_user: User = Depends(get_current_active_user),
 ):
@@ -168,14 +177,16 @@ async def get_secret_keys(
             message="Secret keys retrieved successfully.",
             provider_secret_key=secret_keys_list
         )
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()
             session.close()
 
 
-@user_router.delete("/provider/secret-key", status_code=status.HTTP_200_OK, response_model=ResponseModel)
 @handle_exceptions
+@user_router.delete("/provider/secret-key", status_code=status.HTTP_200_OK, response_model=ResponseModel)
 async def delete_secret_key(
         body: DeleteProviderSecretKeyRequest,
         current_user: User = Depends(get_current_active_user),
@@ -197,14 +208,16 @@ async def delete_secret_key(
         session.commit()
 
         return ResponseModel(message="Secret key deleted successfully.")
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()
             session.close()
 
 
-@user_router.put("/provider/secret-key", status_code=status.HTTP_200_OK, response_model=ProviderSecretKeyResponse)
 @handle_exceptions
+@user_router.put("/provider/secret-key", status_code=status.HTTP_200_OK, response_model=ProviderSecretKeyResponse)
 async def update_secret_key(
         body: ProviderSecretKeySchema,
         current_user: User = Depends(get_current_active_user),
@@ -230,6 +243,8 @@ async def update_secret_key(
             message="Secret key updated successfully.",
             provider_secret_key=[ProviderSecretKeySchema(**secret_key_orm.__dict__)]
         )
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()
