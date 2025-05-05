@@ -1,5 +1,5 @@
 from helpers.enums import AIModelProvider
-from models.models import AIModel
+from ecg_models.models import AIModel
 from infra.database import Database
 
 

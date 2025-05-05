@@ -2,8 +2,8 @@ from typing import Literal
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, HTTPException, Depends, status
 
-from entities.entities import AIModel, User
-from models.models import AIModel as AIModelORM
+from entities import AIModel, User
+from models import AIModel as AIModelORM
 
 from infra.database import Database
 
