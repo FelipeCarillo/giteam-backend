@@ -5,7 +5,7 @@ from config.env import env
 from infra.database import Database
 from helpers.enums import AuthProvider
 from infra.api_github import APIGithub
-from models.models import User as UserORM, UserSettings as UserSettingsORM
+from models import User as UserORM, UserSettings as UserSettingsORM
 
 auth_router = APIRouter(
     prefix="/auth",
@@ -78,4 +78,5 @@ async def callback(
 async def get_token_for_docs(
         code: str = Form(...),
 ):
+    print(code)
     return {"access_token": code, "token_type": "bearer"}

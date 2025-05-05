@@ -1,8 +1,8 @@
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, Header
 from fastapi.security import OAuth2AuthorizationCodeBearer
 
-from entities.entities import User
-from models.models import User as UserORM
+from entities import User
+from models import User as UserORM
 
 from infra.database import Database
 from infra.api_github import APIGithub
@@ -46,3 +46,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     return current_user
+
+
+def get_auth_token(authorization: str = Header(...)) -> str:
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization scheme")
+    token = authorization[len("Bearer "):]
+    return token
