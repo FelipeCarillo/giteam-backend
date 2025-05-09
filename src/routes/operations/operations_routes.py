@@ -1,5 +1,5 @@
-from fastapi.responses import JSONResponse
 from fastapi import APIRouter, HTTPException, Depends, status
+from typing import List, Optional
 
 from entities import Operation, User
 from models import Operation as OperationORM
@@ -17,7 +17,7 @@ operation_router = APIRouter(
 
 @operation_router.get("/", status_code=status.HTTP_200_OK, response_model=ListOperationsResponse)
 async def get_operations(
-        agent_id: int = None,
+        agent_id: Optional[int] = None,
         _: User = Depends(get_current_active_user),
 ):
     """List all operations, optionally filtered by agent_id."""
@@ -31,11 +31,34 @@ async def get_operations(
 
         operations = query.all()
         if not operations:
-            return JSONResponse(status_code=204, content={"message": "No operations found."})
+            # Retorna um objeto vazio em vez de uma resposta JSON
+            return ListOperationsResponse(operations=[])
 
-        operations = [Operation(**operation.__dict__) for operation in operations]
+        # Converte explicitamente para dicionários básicos antes de passar para o modelo Pydantic
+        operation_dicts = []
+        for op in operations:
+            op_dict = {
+                "id": op.id,
+                "agent_id": op.agent_id,
+                "action": op.action,
+                "details": op.details,
+                "github_reference": op.github_reference,
+                "prompt_tokens": op.prompt_tokens,
+                "completion_tokens": op.completion_tokens,
+                "total_tokens": op.total_tokens,
+                "cost": op.cost,
+                "status": op.status,
+                "execution_time": op.execution_time,
+                "created_at": op.created_at
+            }
+            operation_dicts.append(op_dict)
 
-        return JSONResponse(status_code=200, content={"operations": operations})
+        # Cria instâncias Pydantic usando os dicionários
+        pydantic_operations = [Operation.model_validate(op_dict) for op_dict in operation_dicts]
+
+        # Retorna o objeto de resposta diretamente em vez de JSONResponse
+        return ListOperationsResponse(operations=pydantic_operations)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail={"message": "Internal server error.", "error": str(e)})
     finally:

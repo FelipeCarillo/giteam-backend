@@ -1,8 +1,10 @@
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, HTTPException, Depends, status
 import re
+from datetime import datetime
+import json
 from entities.entities import CostHistory, User
-from ecg_models.models import CostHistory as CostHistoryORM
+from models.models import CostHistory as CostHistoryORM
 
 from infra.database import Database
 
@@ -14,10 +16,19 @@ cost_history_router = APIRouter(
     tags=["Cost History"],
 )
 
+
+class DateTimeEncoder(json.JSONEncoder):
+    """Classe para converter objetos datetime para string ISO format durante serialização JSON."""
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
 @cost_history_router.get("/", status_code=status.HTTP_200_OK, response_model=ListCostHistoryResponse)
 async def get_cost_history(
-    month: str = None,
-    current_user: User = Depends(get_current_active_user),
+        month: str = None,
+        current_user: User = Depends(get_current_active_user),
 ):
     """List cost history for the current user, optionally filtered by month."""
     db = Database()
@@ -35,12 +46,25 @@ async def get_cost_history(
         if month:
             filters.append(CostHistoryORM.month == month)
 
-        cost_history = session.query(CostHistoryORM).filter(*filters).first()
+        # Usando .all() ao invés de .first() para obter uma lista de registros
+        cost_history_records = session.query(CostHistoryORM).filter(*filters).all()
 
-        if not cost_history:
+        if not cost_history_records:
             return JSONResponse(status_code=204, content={"message": "No cost history found."})
 
-        cost_history = [CostHistory(**record.__dict__) for record in cost_history]
+        # Convertendo os registros ORM para dicionários serializáveis
+        cost_history = []
+        for record in cost_history_records:
+            item_dict = {
+                "id": record.id,
+                "user_id": record.user_id,
+                "month": record.month,
+                "pr_cost": record.pr_cost,
+                "issue_cost": record.issue_cost,
+                "total_cost": record.total_cost,
+                "created_at": record.created_at.isoformat() if record.created_at else None
+            }
+            cost_history.append(item_dict)
 
         return JSONResponse(status_code=200, content={"cost_history": cost_history})
     except Exception as e:

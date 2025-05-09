@@ -213,7 +213,7 @@ def generate_cost_history(users):
                 pr_cost=3.25,
                 issue_cost=2.10,
                 total_cost=5.35,
-                created_at=current_date - timedelta(days=30)
+                created_at=current_date
             )
         ])
 
