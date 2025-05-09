@@ -1,8 +1,8 @@
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, Header
 from fastapi.security import OAuth2AuthorizationCodeBearer
 
-from entities.entities import User
-from models.models import User as UserORM
+from entities import User
+from models import User as UserORM
 
 from infra.database import Database
 from infra.api_github import APIGithub

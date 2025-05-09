@@ -2,7 +2,7 @@ from datetime import datetime, UTC
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, MetaData, Enum
 
-from helpers.enums import AuthProvider, AIModelProvider
+from helpers.enums import AuthProvider, AIModelProvider, AgentFunction, AgentResponseLength
 
 
 class Base(DeclarativeBase):
@@ -64,9 +64,6 @@ class Repository(Base):
     __tablename__ = 'repositories'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    github_id = Column(String(50), nullable=False)
-    link = Column(String(255), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now(UTC))
     created_by_id = Column(Integer, ForeignKey('users.id'))
@@ -84,7 +81,7 @@ class Repository(Base):
     webhooks = relationship("RepositoryWebhook", back_populates="repository")
 
     def __repr__(self):
-        return f"<Repository(name='{self.name}')>"
+        return f"<Repository(github_id='{self.github_id}', user_id='{self.user_id}')>"
 
 
 class Branch(Base):
@@ -147,11 +144,11 @@ class Agent(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
-    function = Column(String(50), nullable=False)  # 'PR Review', 'Issue Resolution', 'Both'
+    function = Column(Enum(AgentFunction), nullable=False)  # 'PR Review', 'Issue Resolution', 'Both'
     repository_id = Column(Integer, ForeignKey('repositories.id'), nullable=False)
     ai_model_id = Column(Integer, ForeignKey('ai_models.id'), nullable=False)
     active = Column(Boolean, default=True)
-    response_length = Column(String(20), default='medium')  # 'concise', 'medium', 'detailed'
+    response_length = Column(Enum(AgentResponseLength), nullable=False)
     created_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now(UTC))
     updated_by_id = Column(Integer, ForeignKey('users.id'))
@@ -195,7 +192,7 @@ class CostHistory(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    month = Column(String(7), nullable=False)  # Formato: '2025-04'
+    month = Column(String(7), nullable=False)
     pr_cost = Column(Float, default=0.0)
     issue_cost = Column(Float, default=0.0)
     total_cost = Column(Float, default=0.0)
@@ -215,16 +212,10 @@ class RepositoryWebhook(Base):
 
     id = Column(Integer, primary_key=True)
     repository_id = Column(Integer, ForeignKey('repositories.id'), nullable=False)
-    webhook_id = Column(String(50), nullable=False)
-    webhook_url = Column(String(255), nullable=False)
-    webhook_secret = Column(String(100), nullable=False)
-    events = Column(String(255), nullable=False)
-    active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now(UTC))
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
 
-    # Relacionamento existente
     repository = relationship("Repository", back_populates="webhooks", foreign_keys=[repository_id])
 
     def __repr__(self):
-        return f"<RepositoryWebhook(id={self.id}, events='{self.events}')>"
+        return f"<RepositoryWebhook(id={self.id})>"

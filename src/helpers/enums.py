@@ -14,3 +14,21 @@ class AIModelProvider(Enum):
     """
     OPENAI = "OpenAI"
     ANTHROPIC = "Anthropic"
+
+
+class AgentFunction(Enum):
+    """
+    Enum for the supported agent functions.
+    """
+    PR_REVIEW = "pr_review"
+    ISSUE_RESOLUTION = "issue_resolution"
+    BOTH = "both"
+
+
+class AgentResponseLength(Enum):
+    """
+    Enum for the supported agent response lengths.
+    """
+    CONCISE = "concise"
+    MEDIUM = "medium"
+    DETAILED = "detailed"

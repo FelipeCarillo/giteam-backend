@@ -4,14 +4,19 @@ from fastapi import APIRouter, HTTPException, Depends, status
 
 from infra.database import Database
 
-from entities.entities import User
-from models.models import User as UserORM, UserSettings as UserSettingsORM, ProviderSecretKey as ProviderSecretKeyORM
+from entities import User
+from models import User as UserORM, UserSettings as UserSettingsORM, ProviderSecretKey as ProviderSecretKeyORM
 
 from schemas.http import ResponseModel
-from schemas.user import MeResponse, UpdateUserRequest, ProviderSecretKeySchema, ProviderSecretKeyResponse, \
+from schemas.user import (
+    MeResponse,
+    UpdateUserRequest,
+    ProviderSecretKeySchema,
+    ProviderSecretKeyResponse,
     DeleteProviderSecretKeyRequest
+)
 
-from helpers.errors import DatabaseError
+from helpers.errors import handle_exceptions
 from helpers.auth import get_current_active_user
 
 logger = logging.getLogger(__name__)
@@ -22,17 +27,22 @@ user_router = APIRouter(
 )
 
 
+@handle_exceptions
 @user_router.get("/", status_code=status.HTTP_200_OK, response_model=MeResponse)
 async def get_user(
         current_user: User = Depends(get_current_active_user),
 ):
     """Get current user information."""
-    return MeResponse(
-        message="User information retrieved successfully.",
-        user=current_user
-    )
+    try:
+        return MeResponse(
+            message="User information retrieved successfully.",
+            user=current_user
+        )
+    except Exception as error:
+        return error
 
 
+@handle_exceptions
 @user_router.delete("/", status_code=status.HTTP_200_OK, response_model=ResponseModel)
 async def delete_user(
         current_user: User = Depends(get_current_active_user),
@@ -52,22 +62,16 @@ async def delete_user(
         session.commit()
 
         return ResponseModel(message="User deleted successfully.")
+    except Exception as error:
+        return error
 
-    except DatabaseError as e:
-        logger.error(f"Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database error")
-    except HTTPException as e:
-        logger.error(f"HTTP exception: {e.detail}")
-        raise e
-    except Exception as e:
-        logger.error(f"Error deleting user: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if session:
             session.rollback()
             session.close()
 
 
+@handle_exceptions
 @user_router.put("/", status_code=status.HTTP_200_OK, response_model=ResponseModel)
 async def update_user(
         body: UpdateUserRequest,
@@ -100,22 +104,15 @@ async def update_user(
         session.commit()
 
         return ResponseModel(message="User updated successfully.")
-
-    except DatabaseError as e:
-        logger.error(f"Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database error")
-    except HTTPException as e:
-        logger.error(f"HTTP exception: {e.detail}")
-        raise e
-    except Exception as e:
-        logger.error(f"Error updating user: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()
             session.close()
 
 
+@handle_exceptions
 @user_router.post("/provider/secret-key", status_code=status.HTTP_201_CREATED, response_model=ResponseModel)
 async def create_secret_key(
         body: ProviderSecretKeySchema,
@@ -148,22 +145,15 @@ async def create_secret_key(
             message="Secret key created successfully.",
             provider_secret_key=[ProviderSecretKeySchema(**secret_key_orm.__dict__)]
         )
-
-    except DatabaseError as e:
-        logger.error(f"Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database error")
-    except HTTPException as e:
-        logger.error(f"HTTP exception: {e.detail}")
-        raise e
-    except Exception as e:
-        logger.error(f"Error creating secret key: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()
             session.close()
 
 
+@handle_exceptions
 @user_router.get("/provider/secret-key", status_code=status.HTTP_200_OK, response_model=ProviderSecretKeyResponse)
 async def get_secret_keys(
         current_user: User = Depends(get_current_active_user),
@@ -187,22 +177,15 @@ async def get_secret_keys(
             message="Secret keys retrieved successfully.",
             provider_secret_key=secret_keys_list
         )
-
-    except HTTPException as e:
-        logger.error(f"HTTP exception: {e.detail}")
-        raise e
-    except DatabaseError as e:
-        logger.error(f"Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database error")
-    except Exception as e:
-        logger.error(f"Error retrieving secret keys: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()
             session.close()
 
 
+@handle_exceptions
 @user_router.delete("/provider/secret-key", status_code=status.HTTP_200_OK, response_model=ResponseModel)
 async def delete_secret_key(
         body: DeleteProviderSecretKeyRequest,
@@ -225,22 +208,15 @@ async def delete_secret_key(
         session.commit()
 
         return ResponseModel(message="Secret key deleted successfully.")
-
-    except DatabaseError as e:
-        logger.error(f"Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database error")
-    except HTTPException as e:
-        logger.error(f"HTTP exception: {e.detail}")
-        raise e
-    except Exception as e:
-        logger.error(f"Error deleting secret key: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()
             session.close()
 
 
+@handle_exceptions
 @user_router.put("/provider/secret-key", status_code=status.HTTP_200_OK, response_model=ProviderSecretKeyResponse)
 async def update_secret_key(
         body: ProviderSecretKeySchema,
@@ -267,16 +243,8 @@ async def update_secret_key(
             message="Secret key updated successfully.",
             provider_secret_key=[ProviderSecretKeySchema(**secret_key_orm.__dict__)]
         )
-
-    except DatabaseError as e:
-        logger.error(f"Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database error")
-    except HTTPException as e:
-        logger.error(f"HTTP exception: {e.detail}")
-        raise e
-    except Exception as e:
-        logger.error(f"Error updating secret key: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as error:
+        return error
     finally:
         if session:
             session.rollback()

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr
 
-from helpers.enums import AIModelProvider
+from helpers.enums import AIModelProvider, AgentFunction, AgentResponseLength
 
 
 class User(BaseModel):
@@ -43,14 +43,15 @@ class UserSettings(BaseModel):
 class Repository(BaseModel):
     """Pydantic model corresponding to Repository SQLAlchemy model."""
     id: Optional[int] = None
+    owner_id: int
+
     name: str
-    github_id: str
-    link: str
-    user_id: int
+    full_name: str
+    private: bool
+    url: str
+
     created_at: Optional[datetime] = None
 
-    # Relationships
-    user: Optional[User] = None
     agents: List["Agent"] = []
     branches: List["Branch"] = []
     webhooks: List["RepositoryWebhook"] = []
@@ -106,11 +107,11 @@ class Agent(BaseModel):
     """Pydantic model corresponding to Agent SQLAlchemy model."""
     id: Optional[int] = None
     name: str
-    function: str
+    function: AgentFunction
     repository_id: int
     ai_model_id: int
+    response_length: AgentResponseLength
     active: bool = True
-    response_length: str = "medium"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -165,11 +166,9 @@ class CostHistory(BaseModel):
 
 class RepositoryWebhook(BaseModel):
     """Pydantic model corresponding to RepositoryWebhook SQLAlchemy model."""
-    id: Optional[int] = None
+    id: int
     repository_id: int
-    webhook_id: str
-    webhook_url: str
-    webhook_secret: str
+    secret: Optional[str] = None
     events: str
     active: bool = True
     created_at: Optional[datetime] = None
