@@ -1,12 +1,13 @@
-from fastapi.responses import JSONResponse
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, Depends, status
+from typing import Optional
 
-from entities.entities import CostHistory, User
-from ecg_models.models import CostHistory as CostHistoryORM
+from entities import CostHistory, User
+from models import CostHistory as CostHistoryORM
 
 from infra.database import Database
 
 from helpers.auth import get_current_active_user
+from helpers.errors import handle_exceptions
 from schemas.cost_history.schemas import ListCostHistoryResponse
 
 cost_history_router = APIRouter(
@@ -14,10 +15,12 @@ cost_history_router = APIRouter(
     tags=["Cost History"],
 )
 
+
+@handle_exceptions
 @cost_history_router.get("/", status_code=status.HTTP_200_OK, response_model=ListCostHistoryResponse)
 async def get_cost_history(
-    month: str = None,
-    current_user: User = Depends(get_current_active_user),
+        month: Optional[str] = None,
+        current_user: User = Depends(get_current_active_user),
 ):
     """List cost history for the current user, optionally filtered by month."""
     db = Database()
@@ -27,15 +30,15 @@ async def get_cost_history(
         query = session.query(CostHistoryORM).filter(CostHistoryORM.user_id == current_user.id)
         if month:
             query = query.filter(CostHistoryORM.month == month)
-        
-        cost_history = query.all()
-        if not cost_history:
-            return JSONResponse(status_code=204, content={"message": "No cost history found."})
 
-        cost_history = [CostHistory(**record.__dict__) for record in cost_history]
+        cost_history_orm = query.all()
+        cost_history = [CostHistory(**record.__dict__) for record in cost_history_orm]
 
-        return JSONResponse(status_code=200, content={"cost_history": cost_history})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={"message": "Internal server error.", "error": str(e)})
+        return ListCostHistoryResponse(
+            message="Cost history retrieved successfully." if cost_history else "No cost history found.",
+            cost_history=cost_history
+        )
+    except Exception as error:
+        return error
     finally:
         db.close_session()
