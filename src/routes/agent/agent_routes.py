@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from entities.entities import User
-from helpers.auth import get_current_active_user
-from models.models import Agent as AgentORM
+from entities import User
+from models import Agent as AgentORM
 from schemas.agent.schemas import UpdateAgent
+from helpers.auth import get_current_active_user
 
 from infra.database import Database
 
@@ -22,7 +22,8 @@ agent_router = APIRouter(
 async def update_agent(
         agent_id: int,
         agent: UpdateAgent,
-        current_user: User = Depends(get_current_active_user), #nossa rota depende de chamar essa função que pega o usuário atual
+        current_user: User = Depends(get_current_active_user),
+        # nossa rota depende de chamar essa função que pega o usuário atual
 ):
     """Update an agent."""
     db = Database()
@@ -50,9 +51,8 @@ async def update_agent(
         db.close_session()
 
 
-
 @agent_router.delete(
-        "/{agent_id}",
+    "/{agent_id}",
     name="Delete Agent",
     description="Delete a specific agent.",
 )

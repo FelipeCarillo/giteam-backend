@@ -27,5 +27,8 @@ class Env(BaseModel):
     SECRET_KEY: str = os.getenv("SECRET_KEY")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
 
+    # Agent Webhook
+    AGENT_WEBHOOK_URL: str = os.getenv("AGENT_WEBHOOK_URL")
+
 
 env = Env()

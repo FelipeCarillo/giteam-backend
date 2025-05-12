@@ -2,7 +2,7 @@ from fastapi.responses import JSONResponse
 from fastapi import APIRouter, HTTPException, Depends, status
 
 from entities.entities import CostHistory, User
-from models.models import CostHistory as CostHistoryORM
+from ecg_models.models import CostHistory as CostHistoryORM
 
 from infra.database import Database
 
