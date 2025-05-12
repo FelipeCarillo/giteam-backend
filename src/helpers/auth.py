@@ -35,6 +35,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
 
     user = User(
         **user_orm.__dict__,
+        username=user['login'],
         avatar_url=user['avatar_url'],
         settings={**user_orm.settings.__dict__} if user_orm.settings else None,
     )

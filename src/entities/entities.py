@@ -10,6 +10,7 @@ class User(BaseModel):
     id: Optional[int] = None
     provider: str
     name: str
+    username: str
     email: EmailStr
     avatar_url: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -158,6 +159,7 @@ class CostHistory(BaseModel):
 
     # Relationships
     user: Optional[User] = None
+
 
     class Config:
         from_attributes = True
