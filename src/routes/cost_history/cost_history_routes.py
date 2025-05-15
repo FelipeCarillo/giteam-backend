@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, status
 from typing import Optional
+from sqlalchemy.orm import joinedload
 
 from entities import CostHistory, User
-from models import CostHistory as CostHistoryORM
+from models import CostHistory as CostHistoryORM, User as UserORM, UserSettings as UserSettingsORM
 
 from infra.database import Database
 
@@ -27,12 +28,35 @@ async def get_cost_history(
     session = db.get_session()
 
     try:
-        query = session.query(CostHistoryORM).filter(CostHistoryORM.user_id == current_user.id)
+        # Modificação: usar joinedload para carregar o usuário relacionado e suas configurações
+        query = session.query(CostHistoryORM).filter(CostHistoryORM.user_id == current_user.id) \
+            .options(joinedload(CostHistoryORM.user).joinedload(UserORM.settings))
+
         if month:
             query = query.filter(CostHistoryORM.month == month)
 
         cost_history_orm = query.all()
-        cost_history = [CostHistory(**record.__dict__) for record in cost_history_orm]
+
+        # Cria a lista de históricos de custo com os usuários relacionados
+        cost_history = []
+        for record in cost_history_orm:
+            # Converte o objeto ORM para o modelo Pydantic
+            cost_hist = CostHistory(**record.__dict__)
+
+            # Adiciona o usuário ao objeto CostHistory
+            if record.user:
+                user_dict = record.user.__dict__.copy()
+
+                # Adiciona as configurações do usuário se existirem
+                if record.user.settings:
+                    user_dict["settings"] = record.user.settings.__dict__
+
+                # Adiciona o URL do avatar que vem do GitHub (conforme feito em user_routes.py)
+                # Note: Como não temos acesso direto ao avatar_url do GitHub aqui,
+                # você pode precisar adicionar isso através de uma chamada separada ou armazená-lo no banco de dados
+                cost_hist.user = User(**user_dict)
+
+            cost_history.append(cost_hist)
 
         return ListCostHistoryResponse(
             message="Cost history retrieved successfully." if cost_history else "No cost history found.",
