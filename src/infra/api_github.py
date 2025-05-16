@@ -135,8 +135,8 @@ class APIGithub:
     async def get_repositories_infos(token: str) -> List[Dict[str, Union[str, int]]]:
         async with httpx.AsyncClient() as client:
             repo_response = await client.get(
-                f"https://api.github.com/user/repos/",
-                headers={"Authorization": f"token {token}"},
+                f"https://api.github.com/user/repos",
+                headers={"Authorization": f"Bearer {token}"},
             )
             repo_response.raise_for_status()
 

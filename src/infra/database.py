@@ -35,7 +35,7 @@ class Database:
         """Create all tables in the database."""
         from models import Base
         session = self.get_session()
-        session.execute(text("CREATE SCHEMA IF NOT EXISTS giteams"))
+        session.execute(text("CREATE SCHEMA IF NOT EXISTS giteam"))
         session.commit()
         session.close()
         Base.metadata.create_all(self._engine)
