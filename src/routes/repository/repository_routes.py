@@ -16,7 +16,8 @@ from helpers.errors import handle_exceptions
 from helpers.auth import get_current_active_user, oauth2_scheme
 
 from schemas.http import ResponseModel
-from schemas.repository import ListRepositoryResponse, CreateRepositoryRequest, CreateAgentRequest
+from schemas.repository import ListRepositoryResponse, CreateRepositoryRequest, CreateAgentRequest, \
+    ListRepositoryAvailableResponse, AvailableRepositoryResponse
 
 repositories_router = APIRouter(
     prefix="/repositories",
@@ -67,6 +68,59 @@ async def list_repositories(
             repositories.append(repository)
 
         return ListRepositoryResponse(
+            message="Repositories listed successfully.",
+            repositories=repositories
+        )
+    except Exception as error:
+        return error
+    finally:
+        db.close_session()
+
+
+@handle_exceptions
+@repositories_router.get(
+    "/available",
+    name="List Available Repositories",
+    description="List all available repositories.",
+    status_code=status.HTTP_200_OK,
+    response_model=ListRepositoryAvailableResponse,
+)
+async def list_available_repositories(
+        token: str = Depends(oauth2_scheme),
+        current_user: User = Depends(get_current_active_user),
+):
+    """List all available repositories."""
+    db = Database()
+    session = db.get_session()
+
+    try:
+
+        repositories_github = await APIGithub.get_repositories_infos(token)
+        if not repositories_github:
+            return ListRepositoryAvailableResponse(
+                message="No repositories found.",
+                repositories=[]
+            )
+
+        repositories_orm = session.query(RepositoryORM).filter(
+            RepositoryORM.created_by_id == current_user.id,
+            RepositoryORM.deleted == False
+        ).all()
+
+        repositories = []
+        for repo in repositories_github:
+            repo_orm = next((r for r in repositories_orm if r.id == repo["id"]), None)
+            if repo_orm and (len(repo_orm.agents) == 2 or repo_orm.agents[0].function == AgentFunction.BOTH):
+                continue
+            repositories.append(
+                AvailableRepositoryResponse(
+                    id=repo['id'],
+                    name=repo['name'],
+                    url=repo['url'],
+                )
+            )
+
+        return ListRepositoryAvailableResponse(
             message="Repositories listed successfully.",
             repositories=repositories
         )

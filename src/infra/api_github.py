@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Union
+from typing import List, Union, Dict
 from pydantic import EmailStr
 
 from config.env import env
@@ -129,6 +129,28 @@ class APIGithub:
             repository.webhooks = await APIGithub.get_webhooks(token, repository.id)
 
             return repository
+
+    @staticmethod
+    @handle_github_api_exceptions
+    async def get_repositories_infos(token: str) -> List[Dict[str, Union[str, int]]]:
+        async with httpx.AsyncClient() as client:
+            repo_response = await client.get(
+                f"https://api.github.com/user/repos/",
+                headers={"Authorization": f"token {token}"},
+            )
+            repo_response.raise_for_status()
+
+            repo_json = repo_response.json()
+
+            repositories = [
+                {
+                    "id": repo["id"],
+                    "name": repo["name"],
+                    "url": repo["html_url"],
+                }
+                for repo in repo_json
+            ]
+            return repositories
 
     @staticmethod
     @handle_github_api_exceptions

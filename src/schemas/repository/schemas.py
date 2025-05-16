@@ -11,6 +11,16 @@ class ListRepositoryResponse(ResponseModel):
     repositories: List[Repository] = []
 
 
+class AvailableRepositoryResponse(BaseModel):
+    id: int
+    name: str
+    url: str
+
+
+class ListRepositoryAvailableResponse(ResponseModel):
+    repositories: List[AvailableRepositoryResponse] = []
+
+
 class CreateAgentRequest(BaseModel):
     name: str
     function: AgentFunction
