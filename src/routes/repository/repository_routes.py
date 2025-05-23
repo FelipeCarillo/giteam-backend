@@ -50,7 +50,7 @@ async def get_repository(
 
         if not repository_orm:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=status.HTTP_204_NO_CONTENT,
                 detail="Repository not found."
             )
 
