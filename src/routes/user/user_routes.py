@@ -39,7 +39,7 @@ async def get_user(
             user=current_user
         )
     except Exception as error:
-        return error
+        raise error
 
 
 @handle_exceptions
@@ -63,7 +63,7 @@ async def delete_user(
 
         return ResponseModel(message="User deleted successfully.")
     except Exception as error:
-        return error
+        raise error
 
     finally:
         if session:
@@ -105,7 +105,7 @@ async def update_user(
 
         return ResponseModel(message="User updated successfully.")
     except Exception as error:
-        return error
+        raise error
     finally:
         if session:
             session.rollback()
@@ -146,7 +146,7 @@ async def create_secret_key(
             provider_secret_key=[ProviderSecretKeySchema(**secret_key_orm.__dict__)]
         )
     except Exception as error:
-        return error
+        raise error
     finally:
         if session:
             session.rollback()
@@ -178,7 +178,7 @@ async def get_secret_keys(
             provider_secret_key=secret_keys_list
         )
     except Exception as error:
-        return error
+        raise error
     finally:
         if session:
             session.rollback()
@@ -209,7 +209,7 @@ async def delete_secret_key(
 
         return ResponseModel(message="Secret key deleted successfully.")
     except Exception as error:
-        return error
+        raise error
     finally:
         if session:
             session.rollback()
@@ -244,7 +244,7 @@ async def update_secret_key(
             provider_secret_key=[ProviderSecretKeySchema(**secret_key_orm.__dict__)]
         )
     except Exception as error:
-        return error
+        raise error
     finally:
         if session:
             session.rollback()

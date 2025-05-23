@@ -63,6 +63,6 @@ async def get_cost_history(
             cost_history=cost_history
         )
     except Exception as error:
-        return error
+        raise error
     finally:
         db.close_session()
