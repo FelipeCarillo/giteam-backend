@@ -155,6 +155,7 @@ class CostHistory(BaseModel):
     pr_cost: float = 0.0
     issue_cost: float = 0.0
     total_cost: float = 0.0
+
     model_costs: Optional[str] = None
     repository_costs: Optional[str] = None
 

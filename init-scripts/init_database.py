@@ -1,6 +1,6 @@
-from models import AIModel
+from models import AIModel, User, Repository, Operation, Agent, UserSettings, CostHistory
 from infra.database import Database
-from helpers.enums import AIModelProvider
+from helpers.enums import AIModelProvider, AgentFunction, AgentResponseLength
 
 
 def generate_models():
@@ -54,6 +54,112 @@ def generate_models():
 
     return ai_models
 
+def generate_users():
+    users = [
+        User(
+            id = 1,
+            provider = "GITHUB",
+            provider_id = "nnnnnnnn",
+            name = "nome",
+            email = "email@gmail.com",
+            created_at = "2025-05-14 23:32:56.627",
+            updated_at = "2025-05-14 23:32:56.627",
+            deleted = False
+        )
+    ]
+
+    return users
+
+def generate_user_settings():
+    user_settings = [
+        UserSettings(
+            id=1,
+            user_id=1,
+            email_notifications=True,
+            telegram_notifications=False,
+            telegram_chat_id="",
+            daily_limit=5,
+            weekly_limit=25,
+            monthly_limit=100,
+            alert_threshold=80,
+            daily_limit_action="notify_only",
+            weekly_limit_action="notify_only",
+            monthly_limit_action="disable_agents"
+        )
+    ]
+
+    return user_settings
+
+def generate_repositories():
+
+    repositories = [
+        Repository(
+            id = 1,
+            user_id = 1,
+            created_at = "2025-05-14 23:32:56.627",
+            created_by_id = 1,
+            updated_at = "2025-05-14 23:32:56.627",
+            updated_by_id = 1,
+            deleted = False
+        )
+    ]
+
+    return repositories
+
+# so da certo se trocar no model.py function e response_length para Strings
+def generate_agents():
+    agents = [
+        Agent(
+            id = 1,
+            name = "roberto",
+            function = "pr_review",
+            repository_id = 1,
+            ai_model_id = 1,
+            active = True,
+            response_length = "medium",
+            created_by_id = 1,
+            created_at = "2025-05-14 23:32:56.627",
+            updated_by_id = 1,
+            updated_at = "2025-05-14 23:32:56.627",
+            deleted = False
+        )
+    ]
+
+    return agents
+
+def generate_operations():
+    operations = [
+        Operation(
+            id = 1,
+            agent_id = 1,
+            action = "pr_review",
+            details = "xxxx",
+            github_reference = "xxxx",
+            prompt_tokens = 100,
+            completion_tokens = 100,
+            total_tokens = 200,
+            cost = 300.5,
+            status = "pending",
+            execution_time = 2.04,
+            created_at = "2025-05-14 23:32:56.627"
+        )
+    ]
+    return operations
+
+def generate_cost_histories():
+    cost_history = [
+        CostHistory(
+            id = 1,
+            user_id =1,
+            month = "2025-05",
+            pr_cost = 50,
+            issue_cost = 50,
+            total_cost = 50,
+            created_at = "2025-05-14 23:32:56.627"
+        )
+    ]
+
+    return cost_history
 
 if __name__ == "__main__":
     db = Database()
@@ -63,7 +169,19 @@ if __name__ == "__main__":
 
     session = db.get_session()
     models = generate_models()
+    users = generate_users()
+    settings = generate_user_settings()
+    repositories = generate_repositories()
+    agents = generate_agents()
+    operations = generate_operations()
+    cost_histories = generate_cost_histories()
     session.add_all(models)
+    session.add_all(users)
+    session.add_all(settings)
+    session.add_all(repositories)
+    session.add_all(agents)
+    session.add_all(operations)
+    session.add_all(cost_histories)
     session.commit()
     db.close_session()
     print("Models inserted successfully.")

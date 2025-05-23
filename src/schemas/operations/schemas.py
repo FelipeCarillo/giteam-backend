@@ -1,10 +1,14 @@
 from typing import List, Optional
 from pydantic import BaseModel
-from entities.entities import Operation
 
-class ListOperationsResponse(BaseModel):
+from entities import Operation
+from schemas.http import ResponseModel
+
+
+class ListOperationsResponse(ResponseModel):
     """Response model for operations list endpoint."""
     operations: Optional[List[Operation]] = None
+
 
 class OperationDetails(BaseModel):
     """Response model for operation details."""

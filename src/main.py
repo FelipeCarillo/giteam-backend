@@ -2,10 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.auth.auth_routes import auth_router
+from routes.cost_history.cost_history_routes import cost_history_router
+from routes.cost_history.report_cost_history_routes import report_cost_history_router
+from routes.operations.operations_routes import operation_router
 from routes.repository.repository_routes import repositories_router
 from routes.user.user_routes import user_router
 from routes.agent.agent_routes import agent_router
 from routes.ai_model.ai_model_routes import ai_model_router
+
 
 app = FastAPI(
     title="GiTeams API",
@@ -26,7 +30,9 @@ app.include_router(auth_router)
 app.include_router(agent_router)
 app.include_router(ai_model_router)
 app.include_router(repositories_router)
-
+app.include_router(operation_router)
+app.include_router(cost_history_router)
+app.include_router(report_cost_history_router)
 
 @app.get("/")
 async def root():
