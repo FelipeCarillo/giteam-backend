@@ -70,7 +70,7 @@ async def get_repository(
 
         return RepositoryResponse(message="Repository retrieved successfully.", repository=repository)
     except Exception as error:
-        return error
+        raise error
     finally:
         db.close_session()
 

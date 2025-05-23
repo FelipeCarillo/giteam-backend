@@ -1,9 +1,9 @@
 from typing import Literal
-from fastapi.responses import JSONResponse
 from fastapi import APIRouter, HTTPException, Depends, status
 
 from entities import AIModel, User
 from models import AIModel as AIModelORM
+from helpers.errors import handle_exceptions
 
 from infra.database import Database
 
@@ -18,6 +18,7 @@ ai_model_router = APIRouter(
 )
 
 
+@handle_exceptions
 @ai_model_router.get("/", status_code=status.HTTP_200_OK, response_model=ListAIModelsResponse)
 async def get_ai_models(
         language: Literal['br', 'us'] = "us",
@@ -30,7 +31,7 @@ async def get_ai_models(
     try:
         ai_models = session.query(AIModelORM).all()
         if not ai_models:
-            return JSONResponse(status_code=204, content=ListAIModelsResponse(message="No AI models found."))
+            raise HTTPException(status_code=204, detail="No AI models found")
 
         ai_models = [
             AIModel(
@@ -38,9 +39,9 @@ async def get_ai_models(
                 specialties=model.specialties_br if language == "br" else model.specialties_us,
             ) for model in ai_models]
 
-        return JSONResponse(status_code=200, content={"ai_models": ai_models})
+        return ListAIModelsResponse(message="AI models retrieved successfully.", ai_models=ai_models)
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"message": "Internal server error.", "error": str(e)})
+        raise e
     finally:
         db.close_session()
 
