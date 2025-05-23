@@ -26,7 +26,7 @@ repositories_router = APIRouter(
 
 @handle_exceptions
 @repositories_router.get(
-    "/{repository_id}",
+    "/repo/{repository_id}",
     name="Get Repository",
     description="Get a repository by ID.",
     status_code=status.HTTP_200_OK,
