@@ -1,7 +1,6 @@
 import logging
 from typing import List
 
-from starlette.responses import JSONResponse
 from fastapi import APIRouter, HTTPException, Depends, status
 
 from infra.database import Database
@@ -17,12 +16,63 @@ from helpers.auth import get_current_active_user, oauth2_scheme
 
 from schemas.http import ResponseModel
 from schemas.repository import ListRepositoryResponse, CreateRepositoryRequest, CreateAgentRequest, \
-    ListRepositoryAvailableResponse, AvailableRepositoryResponse
+    ListRepositoryAvailableResponse, AvailableRepositoryResponse, RepositoryResponse
 
 repositories_router = APIRouter(
     prefix="/repositories",
     tags=["Reporitories"],
 )
+
+
+@handle_exceptions
+@repositories_router.get(
+    "/{repository_id}",
+    name="Get Repository",
+    description="Get a repository by ID.",
+    status_code=status.HTTP_200_OK,
+    response_model=RepositoryResponse,
+)
+async def get_repository(
+        repository_id: int,
+        token: str = Depends(oauth2_scheme),
+        current_user: User = Depends(get_current_active_user),
+):
+    """Get a repository by ID."""
+    db = Database()
+    session = db.get_session()
+
+    try:
+        repository_orm = session.query(RepositoryORM).filter(
+            RepositoryORM.id == repository_id,
+            RepositoryORM.created_by_id == current_user.id,
+            RepositoryORM.deleted == False
+        ).first()
+
+        if not repository_orm:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Repository not found."
+            )
+
+        repository = await APIGithub.get_repository(
+            token,
+            repo_id=repository_orm.id,
+            branches_name=[branch.name for branch in repository_orm.branches],
+        )
+        repository.agents = [
+            Agent(**agent.__dict__, repository=None, operations=[])
+            for agent in repository_orm.agents
+        ]
+        repository.webhooks = [
+            RepositoryWebhook(**webhook.__dict__, repository=None)
+            for webhook in repository_orm.webhooks
+        ]
+
+        return RepositoryResponse(message="Repository retrieved successfully.", repository=repository)
+    except Exception as error:
+        return error
+    finally:
+        db.close_session()
 
 
 @handle_exceptions

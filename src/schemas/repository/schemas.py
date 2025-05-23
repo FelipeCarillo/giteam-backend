@@ -7,6 +7,10 @@ from helpers.enums import AgentFunction, AgentResponseLength
 from schemas.http import ResponseModel
 
 
+class RepositoryResponse(ResponseModel):
+    repository: Repository
+
+
 class ListRepositoryResponse(ResponseModel):
     repositories: List[Repository] = []
 
