@@ -122,7 +122,7 @@ async def list_repositories(
             repositories=repositories
         )
     except Exception as error:
-        return error
+        raise error
     finally:
         db.close_session()
 
@@ -175,7 +175,7 @@ async def list_available_repositories(
             repositories=repositories
         )
     except Exception as error:
-        return error
+        raise error
     finally:
         db.close_session()
 
@@ -298,7 +298,7 @@ async def create_repository(
                     webhook_id=webhook.id
                 )
         session.rollback()
-        return error
+        raise error
     finally:
         db.close_session()
 
@@ -347,7 +347,7 @@ async def delete_repository(
 
         return ResponseModel(message="Repository deleted successfully.")
     except Exception as error:
-        return error
+        raise error
     finally:
         db.close_session()
 
@@ -434,7 +434,7 @@ async def add_agent_to_repository(
 
         return ResponseModel(message="Agent added successfully.")
     except Exception as error:
-        return error
+        raise error
     finally:
         db.close_session()
 

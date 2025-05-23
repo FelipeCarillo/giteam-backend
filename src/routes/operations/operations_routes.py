@@ -106,6 +106,6 @@ async def get_operations(
             operations=operations
         )
     except Exception as error:
-        return error
+        raise error
     finally:
         db.close_session()
