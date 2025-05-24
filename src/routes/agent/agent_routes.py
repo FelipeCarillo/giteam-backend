@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import joinedload
+import logging
 
 from entities import User
 from models import Agent as AgentORM
-from schemas.agent.schemas import UpdateAgent
+from schemas.agent.schemas import UpdateAgent, GetAgentsResponse, AgentResponse # Import AgentResponse
 from helpers.auth import get_current_active_user
+from helpers.errors import handle_exceptions # Import the decorator
 
 from infra.database import Database
 
@@ -84,26 +87,35 @@ async def delete_agent(
     finally:
         db.close_session()
 
+@handle_exceptions
 @agent_router.get(
-    "/{agent_id}",
+    "",
+    response_model=GetAgentsResponse,
     name="Get Agents",
-    description="Get all agents for the current user.",
+    description="Get all agents for the current user, including their related repository, AI model, and operations.",
 )
 async def get_agents(
-        current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user),
 ):
-    """Get all agents for the current user."""
+    """Get all agents for the current user with their related data."""
     db = Database()
     session = db.get_session()
 
     try:
-        agents_orm = session.query(AgentORM).filter(
-            AgentORM.created_by_id == current_user.id and
+        agents_orm = session.query(AgentORM).options(
+            joinedload(AgentORM.repository),
+            joinedload(AgentORM.ai_model),
+            joinedload(AgentORM.operations)
+        ).filter(
+            AgentORM.created_by_id == current_user.id,
             AgentORM.deleted == False
         ).all()
 
-        return JSONResponse(status_code=200, content={"agents": [agent.__dict__ for agent in agents_orm]})
+        agents_response = [AgentResponse.from_attributes(agent) for agent in agents_orm]
+
+        return GetAgentsResponse(agents=agents_response)
     except Exception as e:
-        return JSONResponse(status_code=500, content={"message": "Internal server error.", "error": str(e)})
+        logger.error(f"Error fetching agents: {e}")
+        raise
     finally:
         db.close_session()
