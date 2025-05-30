@@ -211,7 +211,7 @@ async def create_repository(
         )
         if not repository_exists:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="Repository not found on GitHub."
             )
 
