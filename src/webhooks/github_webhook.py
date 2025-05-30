@@ -1,9 +1,9 @@
 import json
 
-from helpers.enums import AgentFunction
 from infra.database import Database
+from helpers.enums import AgentFunction
+from models.models import Repository, Agent
 from agent.github_ai_agent import GitHubAIAgent
-from models.models import Repository, RepositoryWebhook, Agent
 
 
 async def lambda_handler(event, context):

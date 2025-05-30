@@ -249,6 +249,12 @@ async def create_repository(
                 detail="Repository already exists."
             )
 
+        repository_github = await APIGithub.get_repository(
+            token,
+            repo_id=body.id,
+            branches_name=[]
+        )
+
         agents = [
             AgentORM(
                 name=agent.name,
@@ -261,10 +267,10 @@ async def create_repository(
 
         repository = RepositoryORM(
             id=body.id,
-            name=body.name,
-            full_name=body.full_name,
-            private=body.private,
-            url=body.url,
+            name=repository_github.name,
+            full_name=repository_github.full_name,
+            private=repository_github.private,
+            url=repository_github.url,
             owner_id=current_user.id,
             agents=agents
         )
