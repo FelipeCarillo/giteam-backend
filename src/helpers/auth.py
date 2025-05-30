@@ -34,7 +34,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         raise credentials_exception
 
     user = User(
-        id=user_orm.provider_id,
+        id=user_orm.id,
+        provider_id=user_orm.provider_id,
         provider=user_orm.provider,
         name=user_orm.name,
         username=user['login'],

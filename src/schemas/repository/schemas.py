@@ -34,4 +34,5 @@ class CreateAgentRequest(BaseModel):
 
 class CreateRepositoryRequest(BaseModel):
     id: int
+    branches: List[str] = []
     agents: List[CreateAgentRequest]

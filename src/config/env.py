@@ -28,7 +28,7 @@ class Env(BaseModel):
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
 
     # Agent Webhook
-    AGENT_WEBHOOK_URL: str = os.getenv("AGENT_WEBHOOK_URL")
+    AGENT_WEBHOOK_URL: str = os.getenv("AGENT_WEBHOOK_URL", "http://adawdadsfvdsf.com/webhook")
 
 
 env = Env()

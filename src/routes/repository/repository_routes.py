@@ -8,7 +8,8 @@ from infra.api_github import APIGithub
 
 from entities import Repository, User, Agent, RepositoryWebhook
 
-from models import Repository as RepositoryORM, Agent as AgentORM, RepositoryWebhook as RepositoryWebhookORM
+from models import (Repository as RepositoryORM, Agent as AgentORM, RepositoryWebhook as RepositoryWebhookORM,
+                    Branch as BranchORM)
 
 from helpers.enums import AgentFunction
 from helpers.errors import handle_exceptions
@@ -81,7 +82,7 @@ async def get_repository(
     name="List Repositories",
     description="List all repositories.",
     status_code=status.HTTP_200_OK,
-    response_model=List[Repository],
+    response_model=ListRepositoryResponse,
 )
 async def list_repositories(
         token: str = Depends(oauth2_scheme),
@@ -107,6 +108,7 @@ async def list_repositories(
                 repo_id=repo.id,
                 branches_name=[branch.name for branch in repo.branches],
             )
+            repository.created_at = repo.created_at
             repository.agents = [
                 Agent(**agent.__dict__, repository=None, operations=[])
                 for agent in repo.agents
@@ -218,7 +220,7 @@ async def create_repository(
         user_has_access = await APIGithub.check_user_repo_access(
             token,
             repo_id=body.id,
-            user_id=current_user.id
+            user_id=current_user.provider_id
         )
         if not user_has_access:
             raise HTTPException(
@@ -249,30 +251,30 @@ async def create_repository(
                 detail="Repository already exists."
             )
 
-        repository_github = await APIGithub.get_repository(
-            token,
-            repo_id=body.id,
-            branches_name=[]
-        )
-
         agents = [
             AgentORM(
                 name=agent.name,
                 function=agent.function,
                 response_length=agent.response_length,
-                ai_model_id=agent.ai_model_id
+                ai_model_id=agent.ai_model_id,
+                created_by_id=current_user.id,
+                updated_by_id=current_user.id,
             )
             for agent in body.agents
         ]
 
+        branches = [
+            BranchORM(name=branch, repository_id=body.id, created_by_id=current_user.id)
+            for branch in body.branches
+        ]
+
         repository = RepositoryORM(
             id=body.id,
-            name=repository_github.name,
-            full_name=repository_github.full_name,
-            private=repository_github.private,
-            url=repository_github.url,
-            owner_id=current_user.id,
-            agents=agents
+            user_id=current_user.id,
+            created_by_id=current_user.id,
+            updated_by_id=current_user.id,
+            agents=agents,
+            branches=branches,
         )
 
         for agent in agents:

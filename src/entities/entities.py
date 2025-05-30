@@ -9,6 +9,7 @@ class User(BaseModel):
     """Pydantic model corresponding to User SQLAlchemy model."""
     id: Optional[int] = None
     provider: str
+    provider_id: Optional[int] = None
     name: str
     username: str
     email: EmailStr
@@ -172,7 +173,6 @@ class RepositoryWebhook(BaseModel):
     id: int
     repository_id: int
     secret: Optional[str] = None
-    events: str
     active: bool = True
     created_at: Optional[datetime] = None
 

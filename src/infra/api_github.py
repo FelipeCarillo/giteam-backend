@@ -244,7 +244,6 @@ class APIGithub:
                 webhooks.append(
                     RepositoryWebhook(
                         id=webhook_json["id"],
-                        events=f"{event}",
                         repository_id=repo_id,
                         secret=secret,
                     )
@@ -265,7 +264,6 @@ class APIGithub:
 
             return RepositoryWebhook(
                 id=webhook_json["id"],
-                events=webhook_json["events"],
                 repository_id=webhook_json["config"].get("repository_id"),
                 secret=webhook_json["config"].get("secret"),
             )
@@ -286,7 +284,6 @@ class APIGithub:
             webhooks = [
                 RepositoryWebhook(
                     id=webhook["id"],
-                    events=webhook["events"],
                     repository_id=repo_id,
                     secret=webhook["config"].get("secret") if with_secrets else None,
                 )
