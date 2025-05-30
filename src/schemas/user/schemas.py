@@ -40,5 +40,5 @@ class ProviderSecretKeyResponse(ResponseModel):
     provider_secret_key: List[ProviderSecretKeySchema]
 
 
-class DeleteProviderSecretKeyRequest(ResponseModel):
+class DeleteProviderSecretKeyRequest(BaseModel):
     provider: AIModelProvider
