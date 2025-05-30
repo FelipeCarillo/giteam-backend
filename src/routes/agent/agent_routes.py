@@ -83,3 +83,27 @@ async def delete_agent(
         return JSONResponse(status_code=500, content={"message": "Internal server error.", "error": str(e)})
     finally:
         db.close_session()
+
+@agent_router.get(
+    "/{agent_id}",
+    name="Get Agents",
+    description="Get all agents for the current user.",
+)
+async def get_agents(
+        current_user: User = Depends(get_current_active_user),
+):
+    """Get all agents for the current user."""
+    db = Database()
+    session = db.get_session()
+
+    try:
+        agents_orm = session.query(AgentORM).filter(
+            AgentORM.created_by_id == current_user.id and
+            AgentORM.deleted == False
+        ).all()
+
+        return JSONResponse(status_code=200, content={"agents": [agent.__dict__ for agent in agents_orm]})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"message": "Internal server error.", "error": str(e)})
+    finally:
+        db.close_session()
