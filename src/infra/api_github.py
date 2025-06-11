@@ -321,3 +321,11 @@ class APIGithub:
             )
             webhook_response.raise_for_status()
             return webhook_response.json()
+
+    @staticmethod
+    @handle_github_api_exceptions
+    async def delete_all_webhooks(token: str, repo_id) -> None:
+        webhooks_response = await APIGithub.get_webhooks(token, repo_id)
+        repo_full_name = await APIGithub.get_repo_full_name(token, repo_id)
+        for webhook in webhooks_response:
+            await APIGithub.delete_webhook(token, repo_full_name, webhook.id)

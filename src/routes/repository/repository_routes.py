@@ -300,7 +300,6 @@ async def create_repository(
         if not repository_exists:
             session.add(repository)
         session.commit()
-        session.refresh(repository)
 
         logging.info(f"Repository {repository.id} added to the database.")
 
@@ -308,7 +307,7 @@ async def create_repository(
     except Exception as error:
         if webhooks:
             for webhook in webhooks:
-                await APIGithub.delete_webhook(
+                await APIGithub.delete_all_webhooks(
                     token,
                     repo_id=body.id,
                     webhook_id=webhook.id
