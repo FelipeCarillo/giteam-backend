@@ -246,14 +246,14 @@ async def create_repository(
                 detail="Agent function 'BOTH' cannot be used with other functions."
             )
 
-        repository_exists = session.query(RepositoryORM).filter(
+        existing_repository = session.query(RepositoryORM).filter(
             RepositoryORM.id == body.id,
             RepositoryORM.created_by_id == current_user.id,
             RepositoryORM.deleted == False,
             RepositoryORM.agents.any(AgentORM.deleted == False),
         ).first()
 
-        agents = [
+        new_agents = [
             AgentORM(
                 name=agent.name,
                 function=agent.function,
@@ -270,41 +270,45 @@ async def create_repository(
             for branch in body.branches
         ]
 
-        repository = RepositoryORM(
-            id=body.id,
-            user_id=current_user.id,
-            created_by_id=current_user.id,
-            updated_by_id=current_user.id,
-            agents=agents,
-            branches=branches,
-        )
-
-        for agent in agents:
+        for agent in new_agents:
             webhooks += await APIGithub.create_webhooks(
                 token,
-                repo_id=repository.id,
+                repo_id=body.id,
                 agent_function=agent.function
             )
-        if repository_exists:
-            repository.agents += repository_exists.agents
 
-        for webhook in webhooks:
-            webhook_orm = RepositoryWebhookORM(
+        webhook_orms = [
+            RepositoryWebhookORM(
                 id=webhook.id,
-                repository_id=repository.id
+                repository_id=body.id
             )
-            repository.webhooks.append(webhook_orm)
-        if repository_exists:
-            repository.webhooks += repository_exists.webhooks
+            for webhook in webhooks
+        ]
 
-        if not repository_exists:
+        if existing_repository:
+            existing_repository.agents.extend(new_agents)
+            existing_repository.webhooks.extend(webhook_orms)
+            existing_repository.updated_by_id = current_user.id
+
+            logging.info(f"Repository {existing_repository.id} updated with new agents.")
+        else:
+            repository = RepositoryORM(
+                id=body.id,
+                user_id=current_user.id,
+                created_by_id=current_user.id,
+                updated_by_id=current_user.id,
+                agents=new_agents,
+                branches=branches,
+                webhooks=webhook_orms,
+            )
             session.add(repository)
+            logging.info(f"Repository {repository.id} created.")
+
         session.commit()
-
-        logging.info(f"Repository {repository.id} added to the database.")
-
         return ResponseModel(message="Repository created successfully.")
+
     except Exception as error:
+        # Clean up webhooks on error
         if webhooks:
             for webhook in webhooks:
                 await APIGithub.delete_all_webhooks(
