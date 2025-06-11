@@ -252,11 +252,6 @@ async def create_repository(
             RepositoryORM.deleted == False,
             RepositoryORM.agents.any(AgentORM.deleted == False),
         ).first()
-        if repository_exists:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Repository already exists."
-            )
 
         agents = [
             AgentORM(
@@ -290,14 +285,20 @@ async def create_repository(
                 repo_id=repository.id,
                 agent_function=agent.function
             )
+        if repository_exists:
+            repository.agents += repository_exists.agents
+
         for webhook in webhooks:
             webhook_orm = RepositoryWebhookORM(
                 id=webhook.id,
                 repository_id=repository.id
             )
             repository.webhooks.append(webhook_orm)
+        if repository_exists:
+            repository.webhooks += repository_exists.webhooks
 
-        session.add(repository)
+        if not repository_exists:
+            session.add(repository)
         session.commit()
         session.refresh(repository)
 
