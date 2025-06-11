@@ -101,7 +101,10 @@ async def list_repositories(
         ).all()
 
         if not repositories_orm:
-            return []
+            return ListRepositoryAvailableResponse(
+                message="Repositories listed successfully.",
+                repositories=[]
+            )
 
         repositories = []
         for repo in repositories_orm:
