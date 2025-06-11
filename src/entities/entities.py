@@ -163,7 +163,6 @@ class CostHistory(BaseModel):
     # Relationships
     user: Optional[User] = None
 
-
     class Config:
         from_attributes = True
 

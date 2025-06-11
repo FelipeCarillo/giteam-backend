@@ -33,7 +33,7 @@ def generate_models():
             active=True
         ),
         AIModel(
-            name="claude-3.7-sonnet",
+            name="claude-3-7-sonnet-20250219",
             provider=AIModelProvider.ANTHROPIC,
             specialties_us="While primarily artistic, this model can generate creative solutions for code comments, documentation, and generating poetic-style code documentation or creative descriptions in issues or pull requests.",
             specialties_br="Embora seja principalmente artístico, este modelo pode gerar soluções criativas para comentários de código, documentação e gerar documentação de código ou descrições criativas em estilo poético em problemas ou pull requests.",
@@ -42,7 +42,7 @@ def generate_models():
             active=True
         ),
         AIModel(
-            name="claude-3.5-haiku",
+            name="claude-3-5-haiku-20241022",
             provider=AIModelProvider.ANTHROPIC,
             specialties_us="Best for short and concise code documentation, creating brief summaries of code changes in a poetic, minimalist style, or generating creative, condensed issue descriptions or pull request summaries.",
             specialties_br="Melhor para documentação de código curta e concisa, criando resumos breves de alterações de código em um estilo poético e minimalista, ou gerando descrições criativas e condensadas de problemas ou resumos de pull requests.",

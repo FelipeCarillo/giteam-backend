@@ -145,12 +145,10 @@ class Agent(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
     function = Column(Enum(AgentFunction), nullable=False)  # 'PR Review', 'Issue Resolution', 'Both'
-    #function = Column(String(100), nullable=False) #--> para testar e subir o banco local
     repository_id = Column(Integer, ForeignKey('repositories.id'), nullable=False)
     ai_model_id = Column(Integer, ForeignKey('ai_models.id'), nullable=False)
     active = Column(Boolean, default=True)
     response_length = Column(Enum(AgentResponseLength), nullable=False)
-    #response_length = Column(String(100), nullable=False)  #--> para testar e subir o BD local
     created_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now(UTC))
     updated_by_id = Column(Integer, ForeignKey('users.id'))
@@ -215,10 +213,12 @@ class RepositoryWebhook(Base):
 
     id = Column(Integer, primary_key=True)
     repository_id = Column(Integer, ForeignKey('repositories.id'), nullable=False)
+    secret = Column(String(255))  # Adicionar este campo
+    active = Column(Boolean, default=True)  # Adicionar este campo
     created_at = Column(DateTime, default=datetime.now(UTC))
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
 
     repository = relationship("Repository", back_populates="webhooks", foreign_keys=[repository_id])
 
     def __repr__(self):
-        return f"<RepositoryWebhook(id={self.id})>"
+        return f"<RepositoryWebhook(id={self.id}, active={self.active})>"

@@ -39,7 +39,7 @@ async def update_agent(
             return JSONResponse(status_code=204, content={"message": "Agent not found."})
 
         # Update the agent
-        for key, value in agent.model_dump().items():
+        for key, value in agent.model_dump(exclude_none=True).items():
             setattr(agent_orm, key, value)
 
         session.commit()
@@ -73,7 +73,6 @@ async def delete_agent(
         if not agent_orm:
             return JSONResponse(status_code=204, content={"message": "Agent not found."})
 
-        # delete agent
         setattr(agent_orm, "deleted", True)
 
         session.commit()
@@ -83,6 +82,7 @@ async def delete_agent(
         return JSONResponse(status_code=500, content={"message": "Internal server error.", "error": str(e)})
     finally:
         db.close_session()
+
 
 @agent_router.get(
     "/{agent_id}",

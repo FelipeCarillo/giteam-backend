@@ -2,17 +2,14 @@ import json
 import traceback
 
 import httpx
-from enum import Enum
 from datetime import datetime, UTC
 from typing import Dict, Any, List, Tuple
 
+from openai import AsyncOpenAI
+from anthropic import AsyncAnthropic
+
 from entities.entities import Agent, AIModel, Operation
-from helpers.enums import AgentFunction, AgentResponseLength, AIModelProvider
-
-
-class EventType(Enum):
-    PULL_REQUEST = "pull_request"
-    ISSUE = "issues"
+from helpers.enums import AgentFunction, AgentResponseLength, AIModelProvider, WebhookEventType
 
 
 class GitHubAIAgent:
@@ -86,34 +83,34 @@ class GitHubAIAgent:
             return operation
 
     @staticmethod
-    def _identify_event_type(event_data: Dict[str, Any]) -> EventType:
+    def _identify_event_type(event_data: Dict[str, Any]) -> WebhookEventType:
         """Identifica o tipo de evento baseado nos dados recebidos"""
         if "pull_request" in event_data:
-            return EventType.PULL_REQUEST
+            return WebhookEventType.PULL_REQUEST
         elif "issue" in event_data:
-            return EventType.ISSUE
+            return WebhookEventType.ISSUE
         else:
             raise ValueError("Tipo de evento não suportado")
 
     @staticmethod
-    def _can_process_event(agent_function: AgentFunction, event_type: EventType) -> bool:
+    def _can_process_event(agent_function: AgentFunction, event_type: WebhookEventType) -> bool:
         """Verifica se o agente pode processar o tipo de evento"""
         if agent_function == AgentFunction.BOTH:
             return True
-        elif agent_function == AgentFunction.PR_REVIEW and event_type == EventType.PULL_REQUEST:
+        elif agent_function == AgentFunction.PR_REVIEW and event_type == WebhookEventType.PULL_REQUEST:
             return True
-        elif agent_function == AgentFunction.ISSUE_RESOLUTION and event_type == EventType.ISSUE:
+        elif agent_function == AgentFunction.ISSUE_RESOLUTION and event_type == WebhookEventType.ISSUE:
             return True
         return False
 
-    async def _extract_event_context(self, event_data: Dict[str, Any], event_type: EventType) -> Dict[str, Any]:
+    async def _extract_event_context(self, event_data: Dict[str, Any], event_type: WebhookEventType) -> Dict[str, Any]:
         """Extrai informações relevantes do evento para análise"""
         context = {
             "repository_name": event_data["repository"]["full_name"],
             "action": event_data.get("action"),
         }
 
-        if event_type == EventType.PULL_REQUEST:
+        if event_type == WebhookEventType.PULL_REQUEST:
             pr = event_data["pull_request"]
             context.update({
                 "number": pr["number"],
@@ -131,7 +128,7 @@ class GitHubAIAgent:
             context["code_changes"] = await self._get_pr_code_changes(context["repository_name"], pr["number"])
             context["files_changed"] = await self._get_pr_files_list(context["repository_name"], pr["number"])
 
-        elif event_type == EventType.ISSUE:
+        elif event_type == WebhookEventType.ISSUE:
             issue = event_data["issue"]
             context.update({
                 "number": issue["number"],
@@ -150,7 +147,7 @@ class GitHubAIAgent:
     @staticmethod
     def _generate_prompt(
             context: Dict[str, Any],
-            event_type: EventType,
+            event_type: WebhookEventType,
             response_length: AgentResponseLength
     ) -> str:
         """Gera o prompt para a IA baseado no contexto e configurações"""
@@ -163,7 +160,7 @@ class GitHubAIAgent:
 
         length_instruction = length_instructions[response_length]
 
-        if event_type == EventType.PULL_REQUEST:
+        if event_type == WebhookEventType.PULL_REQUEST:
             return f"""
 Como um revisor especializado de código, analise o seguinte Pull Request:
 
@@ -196,7 +193,7 @@ Por favor, forneça uma análise que inclua:
 Use um tom profissional e construtivo. Formate sua resposta em Markdown.
 """
 
-        # elif event_type == EventType.ISSUE:
+        # elif event_type == WebhookEventType.ISSUE:
         else:
             return f"""
 Como um assistente especializado em análise de issues, analise a seguinte issue:
@@ -227,111 +224,125 @@ Por favor, forneça uma análise que inclua:
 Use um tom profissional e prestativo. Formate sua resposta em Markdown.
 """
 
-    async def _call_ai_model(self, prompt: str, ai_model: AIModel) -> Tuple[str, Dict[str, int], float]:
-        """Chama o modelo de IA apropriado e retorna a resposta, tokens usados e custo"""
-
+    async def _call_ai_model(self, prompt: str, ai_model: AIModel, context: Dict[str, Any]) -> Tuple[
+        str, Dict[str, int], float]:
+        """Chama o modelo de IA configurado (OpenAI ou Anthropic)"""
         if ai_model.provider == AIModelProvider.OPENAI:
-            return await self._call_openai(prompt, ai_model)
+            return await self._call_openai(prompt, ai_model, context)
         elif ai_model.provider == AIModelProvider.ANTHROPIC:
-            return await self._call_anthropic(prompt, ai_model)
+            return await self._call_anthropic(prompt, ai_model, context)
         else:
-            raise ValueError(f"Provedor de IA não suportado: {ai_model.provider}")
+            raise ValueError(f"Provedor de IA {ai_model.provider} não suportado")
 
-    async def _call_openai(self, prompt: str, ai_model: AIModel) -> Tuple[str, Dict[str, int], float]:
-        """Chama a API da OpenAI"""
-        if not self.openai_api_key:
-            raise ValueError("Chave da API OpenAI não configurada")
+    async def _call_openai(self, prompt: str, ai_model: AIModel, context: Dict[str, Any]) -> Tuple[
+        str, Dict[str, int], float]:
+        """Chama a API da OpenAI usando a biblioteca oficial"""
 
-        payload = {
-            "model": ai_model.name,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.3
-        }
+        # Obter response_length do contexto
+        agent_config = context.get('_agent_config', {})
+        response_length = agent_config.get('response_length', AgentResponseLength.MEDIUM)
 
-        if ai_model.response_length == AgentResponseLength.CONCISE:
-            payload["max_tokens"] = 5_000
-        elif ai_model.response_length == AgentResponseLength.MEDIUM:
-            payload["max_tokens"] = 10_000
+        # Configurar max_tokens baseado no response_length
+        max_tokens = None
+        if response_length == AgentResponseLength.CONCISE:
+            max_tokens = 2000  # Ajustado para valor mais realista
+        elif response_length == AgentResponseLength.MEDIUM:
+            max_tokens = 4000
+        # DETAILED não define max_tokens (usa o padrão do modelo)
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.openai_api_key}",
-                    "Content-Type": "application/json"
-                },
-                json=payload
+        try:
+            # Fazer chamada para a API
+            completion = await AsyncOpenAI(api_key=self.openai_api_key).chat.completions.create(
+                model=ai_model.name,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=max_tokens
             )
 
-            response.raise_for_status()
-            data = response.json()
+            # Extrair resposta
+            content = completion.choices[0].message.content
 
-            content = data["choices"][0]["message"]["content"]
-            usage = data["usage"]
-
-            prompt_cost = usage["prompt_tokens"] * ai_model.prompt_token_cost / 1000
-            completion_cost = usage["completion_tokens"] * ai_model.completion_token_cost / 1000
+            # Calcular custos
+            usage = completion.usage
+            prompt_cost = usage.prompt_tokens * ai_model.prompt_token_cost / 1000
+            completion_cost = usage.completion_tokens * ai_model.completion_token_cost / 1000
             total_cost = prompt_cost + completion_cost
 
-            return content, usage, total_cost
-
-    async def _call_anthropic(self, prompt: str, ai_model: AIModel) -> Tuple[str, Dict[str, int], float]:
-        """Chama a API da Anthropic"""
-        if not self.anthropic_api_key:
-            raise ValueError("Chave da API Anthropic não configurada")
-
-        payload = {
-            "model": ai_model.name,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
-        }
-
-        if ai_model.response_length == AgentResponseLength.CONCISE:
-            payload["max_tokens"] = 5_000
-        elif ai_model.response_length == AgentResponseLength.MEDIUM:
-            payload["max_tokens"] = 10_000
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": self.anthropic_api_key,
-                    "Content-Type": "application/json",
-                    "anthropic-version": "2023-06-01"
-                },
-                json=payload
-            )
-
-            response.raise_for_status()
-            data = response.json()
-
-            content = data["content"][0]["text"]
-            usage = data["usage"]
-
-            prompt_cost = usage["input_tokens"] * ai_model.prompt_token_cost / 1000
-            completion_cost = usage["output_tokens"] * ai_model.completion_token_cost / 1000
-            total_cost = prompt_cost + completion_cost
-
+            # Retornar no formato esperado
             tokens_used = {
-                "prompt_tokens": usage["input_tokens"],
-                "completion_tokens": usage["output_tokens"],
-                "total_tokens": usage["input_tokens"] + usage["output_tokens"]
+                "prompt_tokens": usage.prompt_tokens,
+                "completion_tokens": usage.completion_tokens,
+                "total_tokens": usage.total_tokens
             }
 
             return content, tokens_used, total_cost
 
-    async def _post_github_response(self, event_data: Dict[str, Any], ai_response: str, event_type: EventType) -> str:
+        except Exception as e:
+            raise Exception(f"Erro ao chamar OpenAI API: {str(e)}")
+
+    async def _call_anthropic(self, prompt: str, ai_model: AIModel, context: Dict[str, Any]) -> Tuple[
+        str, Dict[str, int], float]:
+        """Chama a API da Anthropic usando a biblioteca oficial"""
+
+        # Obter response_length do contexto
+        agent_config = context.get('_agent_config', {})
+        response_length = agent_config.get('response_length', AgentResponseLength.MEDIUM)
+
+        # Configurar max_tokens baseado no response_length
+        max_tokens = 4096  # Padrão
+        if response_length == AgentResponseLength.CONCISE:
+            max_tokens = 2000
+        elif response_length == AgentResponseLength.MEDIUM:
+            max_tokens = 4000
+        # DETAILED usa o máximo permitido (4096)
+
+        try:
+            # Fazer chamada para a API
+            message = await AsyncAnthropic(api_key=self.anthropic_api_key).messages.create(
+                model=ai_model.name,
+                max_tokens=max_tokens,
+                temperature=0.3,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            # Extrair resposta
+            content = message.content[0].text
+
+            # Calcular custos
+            prompt_tokens = message.usage.input_tokens
+            completion_tokens = message.usage.output_tokens
+            total_tokens = prompt_tokens + completion_tokens
+
+            prompt_cost = prompt_tokens * ai_model.prompt_token_cost
+            completion_cost = completion_tokens * ai_model.completion_token_cost
+            total_cost = prompt_cost + completion_cost
+
+            # Retornar no formato esperado
+            tokens_used = {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens
+            }
+
+            return content, tokens_used, total_cost
+
+        except Exception as e:
+            raise Exception(f"Erro ao chamar Anthropic API: {str(e)}")
+
+    async def _post_github_response(self, event_data: Dict[str, Any], ai_response: str,
+                                    event_type: WebhookEventType) -> str:
         """Posta a resposta da IA no GitHub como comentário"""
 
         repo_full_name = event_data["repository"]["full_name"]
 
-        if event_type == EventType.PULL_REQUEST:
+        if event_type == WebhookEventType.PULL_REQUEST:
             number = event_data["pull_request"]["number"]
             url = f"https://api.github.com/repos/{repo_full_name}/issues/{number}/comments"
-        elif event_type == EventType.ISSUE:
+        elif event_type == WebhookEventType.ISSUE:
             number = event_data["issue"]["number"]
             url = f"https://api.github.com/repos/{repo_full_name}/issues/{number}/comments"
 

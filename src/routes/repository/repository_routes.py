@@ -46,7 +46,8 @@ async def get_repository(
         repository_orm = session.query(RepositoryORM).filter(
             RepositoryORM.id == repository_id,
             RepositoryORM.created_by_id == current_user.id,
-            RepositoryORM.deleted == False
+            RepositoryORM.deleted == False,
+            RepositoryORM.agents.any(AgentORM.deleted == False),
         ).first()
 
         if not repository_orm:
@@ -95,7 +96,8 @@ async def list_repositories(
     try:
         repositories_orm = session.query(RepositoryORM).filter(
             RepositoryORM.created_by_id == current_user.id,
-            RepositoryORM.deleted == False
+            RepositoryORM.deleted == False,
+            RepositoryORM.agents.any(AgentORM.deleted == False),
         ).all()
 
         if not repositories_orm:
@@ -156,7 +158,8 @@ async def list_available_repositories(
 
         repositories_orm = session.query(RepositoryORM).filter(
             RepositoryORM.created_by_id == current_user.id,
-            RepositoryORM.deleted == False
+            RepositoryORM.deleted == False,
+            RepositoryORM.agents.any(AgentORM.deleted == False),
         ).all()
 
         repositories = []
@@ -243,7 +246,8 @@ async def create_repository(
         repository_exists = session.query(RepositoryORM).filter(
             RepositoryORM.id == body.id,
             RepositoryORM.created_by_id == current_user.id,
-            RepositoryORM.deleted == False
+            RepositoryORM.deleted == False,
+            RepositoryORM.agents.any(AgentORM.deleted == False),
         ).first()
         if repository_exists:
             raise HTTPException(
@@ -332,7 +336,8 @@ async def delete_repository(
         repository_orm = session.query(RepositoryORM).filter(
             RepositoryORM.id == repository_id,
             RepositoryORM.created_by_id == current_user.id,
-            RepositoryORM.deleted == False
+            RepositoryORM.deleted == False,
+            RepositoryORM.agents.any(AgentORM.deleted == False),
         ).first()
 
         if not repository_orm:
@@ -382,7 +387,8 @@ async def add_agent_to_repository(
         repository_orm = session.query(RepositoryORM).filter(
             RepositoryORM.id == repository_id,
             RepositoryORM.created_by_id == current_user.id,
-            RepositoryORM.deleted == False
+            RepositoryORM.deleted == False,
+            RepositoryORM.agents.any(AgentORM.deleted == False),
         ).first()
 
         if not repository_orm:
@@ -468,7 +474,8 @@ async def activate_deactivate_repository(
         repository_orm = session.query(RepositoryORM).filter(
             RepositoryORM.id == repository_id,
             RepositoryORM.created_by_id == current_user.id,
-            RepositoryORM.deleted == False
+            RepositoryORM.deleted == False,
+            RepositoryORM.agents.any(AgentORM.deleted == False),
         ).first()
 
         if not repository_orm:

@@ -32,3 +32,8 @@ class AgentResponseLength(Enum):
     CONCISE = "concise"
     MEDIUM = "medium"
     DETAILED = "detailed"
+
+
+class WebhookEventType(Enum):
+    PULL_REQUEST = "pull_request"
+    ISSUE = "issues"
