@@ -1,11 +1,13 @@
 import json
 import logging
+from datetime import datetime, UTC
+
 from sqlalchemy import and_
 
 from infra.database import Database
 from helpers.enums import AgentFunction
-from models.models import Repository, Agent, Operation as OperationORM, ProviderSecretKey
 from agent.github_ai_agent import GitHubAIAgent
+from models.models import Repository, Operation as OperationORM, CostHistory as CostHistoryORM, ProviderSecretKey
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +16,7 @@ async def lambda_handler(event, context):
     """
     AWS Lambda handler para processar eventos do GitHub via SQS
     """
-    db = Database() 
+    db = Database()
     session = db.get_session()
 
     try:
@@ -41,15 +43,7 @@ async def lambda_handler(event, context):
         if event_type == 'pull_request':
             if github_event.get('action') not in ['opened', 'edited', 'closed', 'reopened', 'synchronize']:
                 logger.warning(f"Unsupported pull request action: {github_event.get('action')}")
-                return {"statusCode": 200, "body": "Action ignored"}
-
-            pr_data = github_event.get('pull_request', {})
-            target_branch = pr_data.get('base', {}).get('ref')
-            branch_names = [branch.name for branch in repository.branches]
-
-            if branch_names and target_branch not in branch_names:
-                logger.warning(f"Branch {target_branch} not configured for monitoring.")
-                return {"statusCode": 200, "body": "Branch not monitored"}
+                return {"statusCode": 422, "body": "Action ignored"}
 
             for ag in repository.agents:
                 if ag.function in [AgentFunction.PR_REVIEW, AgentFunction.BOTH] and not ag.deleted:
@@ -59,7 +53,7 @@ async def lambda_handler(event, context):
         else:
             if github_event.get('action') not in ['opened', 'edited', 'closed', 'reopened']:
                 logger.warning(f"Unsupported issue action: {github_event.get('action')}")
-                return {"statusCode": 200, "body": "Action ignored"}
+                return {"statusCode": 422, "body": "Action ignored"}
 
             for ag in repository.agents:
                 if ag.function in [AgentFunction.ISSUE_RESOLUTION, AgentFunction.BOTH] and not ag.deleted:
@@ -68,7 +62,7 @@ async def lambda_handler(event, context):
 
         if not agent:
             logger.error(f"No active agent found for {event_type}")
-            return {"statusCode": 404, "body": "No agent configured"}
+            return {"statusCode": 422, "body": "No agent configured"}
 
         user = agent.created_by
 
@@ -101,6 +95,29 @@ async def lambda_handler(event, context):
         operation = await github_agent.process_github_event(github_event, agent)
 
         if operation:
+            today = datetime.now(UTC)
+            current_year = today.year
+            current_month = today.month
+            month = f"{current_year}-{current_month:02d}"
+
+            cost_history = session.query(CostHistoryORM).filter(
+                CostHistoryORM.user_id == user.id,
+                CostHistoryORM.month == month
+            ).first()
+            if not cost_history:
+                payload = {
+                    'user_id': user.id,
+                    'month': month,
+                    'total_cost': operation.cost
+                }
+                if github_event.get('event_type') == 'pull_request':
+                    payload['pr_cost'] = operation.cost
+                else:
+                    payload['issue_cost'] = operation.cost
+
+                cost_history = CostHistoryORM(**payload)
+                session.add(cost_history)
+
             operation_orm = OperationORM(
                 agent_id=operation.agent_id,
                 action=operation.action,

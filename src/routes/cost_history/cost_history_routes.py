@@ -27,23 +27,12 @@ async def get_cost_history(
     session = db.get_session()
 
     try:
-        today = datetime.now()
-        current_year = today.year
-        current_month = today.month
-        month = f"{current_year}-{current_month:02d}"
-
-        # Modificação: usar joinedload para carregar o usuário relacionado e suas configurações
-        query = session.query(CostHistoryORM).filter(
-            CostHistoryORM.user_id == current_user.id,
-            CostHistoryORM.month == month,
-        ).options(
-            joinedload(CostHistoryORM.user).joinedload(UserORM.settings)
-        )
-
-        cost_history_orm = query.all()
+        cost_histories_orm = session.query(CostHistoryORM).filter(
+            CostHistoryORM.user_id == current_user.id
+        ).all()
 
         cost_history = []
-        for record in cost_history_orm:
+        for record in cost_histories_orm:
             cost_hist = CostHistory(**record.__dict__)
 
             if record.user:

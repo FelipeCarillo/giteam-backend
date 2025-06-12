@@ -262,8 +262,6 @@ async def create_repository(
                 RepositoryORM.agents.any(AgentORM.deleted == False),
             ).first()
 
-            agents_to_remove = [agent for agent in existing_repository.agents if agent.deleted]
-
             new_agents = [
                 AgentORM(
                     name=agent.name,
