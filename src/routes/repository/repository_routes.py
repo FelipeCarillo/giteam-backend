@@ -266,6 +266,7 @@ async def create_repository(
         new_agents = [
             AgentORM(
                 name=agent.name,
+                repository_id=body.id,
                 function=agent.function,
                 response_length=agent.response_length,
                 ai_model_id=agent.ai_model_id,
