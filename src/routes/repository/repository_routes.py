@@ -262,7 +262,9 @@ async def create_repository(
                 RepositoryORM.agents.any(AgentORM.deleted == False),
             ).first()
 
-            existing_repository.agents = [agent for agent in existing_repository.agents if not agent.deleted]
+            agents_to_remove = [agent for agent in existing_repository.agents if agent.deleted]
+            for agent in agents_to_remove:
+                existing_repository.agents.remove(agent)
 
             new_agents = [
                 AgentORM(
@@ -322,12 +324,11 @@ async def create_repository(
     except Exception as error:
         # Clean up webhooks on error
         if webhooks:
-            for webhook in webhooks:
-                await APIGithub.delete_all_webhooks(
-                    token,
-                    repo_id=body.id,
-                    webhook_id=webhook.id
-                )
+            await APIGithub.delete_all_webhooks(
+                token,
+                repo_id=body.id
+            )
+
         session.rollback()
         raise error
     finally:
