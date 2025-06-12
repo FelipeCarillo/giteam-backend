@@ -263,8 +263,6 @@ async def create_repository(
             ).first()
 
             agents_to_remove = [agent for agent in existing_repository.agents if agent.deleted]
-            for agent in agents_to_remove:
-                existing_repository.agents.remove(agent)
 
             new_agents = [
                 AgentORM(
@@ -300,8 +298,9 @@ async def create_repository(
             ]
 
             if existing_repository:
-                existing_repository.agents.extend(new_agents)
-                existing_repository.webhooks.extend(webhook_orms)
+                session.add_all(new_agents)
+                session.add_all(branches)
+                session.add_all(webhook_orms)
                 existing_repository.updated_by_id = current_user.id
 
                 logging.info(f"Repository {existing_repository.id} updated with new agents.")
