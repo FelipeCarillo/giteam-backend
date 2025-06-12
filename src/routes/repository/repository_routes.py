@@ -215,108 +215,109 @@ async def create_repository(
     webhooks = []
 
     try:
-        if not body.agents:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="At least one agent is required."
+        with session.no_autoflush:
+            if not body.agents:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="At least one agent is required."
+                )
+
+            repository_exists = await APIGithub.check_repository_exists(
+                token,
+                repo_id=body.id
             )
+            if not repository_exists:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Repository not found on GitHub."
+                )
 
-        repository_exists = await APIGithub.check_repository_exists(
-            token,
-            repo_id=body.id
-        )
-        if not repository_exists:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Repository not found on GitHub."
-            )
-
-        user_has_access = await APIGithub.check_user_repo_access(
-            token,
-            repo_id=body.id,
-            user_id=current_user.provider_id
-        )
-        if not user_has_access:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not have access to this repository."
-            )
-
-        functions = [agent.function for agent in body.agents]
-        if len(functions) != len(set(functions)):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Agent functions must be unique."
-            )
-        if any(function == AgentFunction.BOTH for function in functions) and len(functions) > 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Agent function 'BOTH' cannot be used with other functions."
-            )
-
-        existing_repository = session.query(RepositoryORM).filter(
-            RepositoryORM.id == body.id,
-            RepositoryORM.created_by_id == current_user.id,
-            RepositoryORM.deleted == False,
-            RepositoryORM.agents.any(AgentORM.deleted == False),
-        ).first()
-
-        existing_repository.agents = [agent for agent in existing_repository.agents if not agent.deleted]
-
-        new_agents = [
-            AgentORM(
-                name=agent.name,
-                repository_id=body.id,
-                function=agent.function,
-                response_length=agent.response_length,
-                ai_model_id=agent.ai_model_id,
-                created_by_id=current_user.id,
-                updated_by_id=current_user.id,
-            )
-            for agent in body.agents
-        ]
-
-        branches = [
-            BranchORM(name=branch, repository_id=body.id, created_by_id=current_user.id)
-            for branch in body.branches
-        ]
-
-        for agent in new_agents:
-            webhooks += await APIGithub.create_webhooks(
+            user_has_access = await APIGithub.check_user_repo_access(
                 token,
                 repo_id=body.id,
-                agent_function=agent.function
+                user_id=current_user.provider_id
             )
+            if not user_has_access:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User does not have access to this repository."
+                )
 
-        webhook_orms = [
-            RepositoryWebhookORM(
-                id=webhook.id,
-                repository_id=body.id
-            )
-            for webhook in webhooks
-        ]
+            functions = [agent.function for agent in body.agents]
+            if len(functions) != len(set(functions)):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Agent functions must be unique."
+                )
+            if any(function == AgentFunction.BOTH for function in functions) and len(functions) > 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Agent function 'BOTH' cannot be used with other functions."
+                )
 
-        if existing_repository:
-            existing_repository.agents.extend(new_agents)
-            existing_repository.webhooks.extend(webhook_orms)
-            existing_repository.updated_by_id = current_user.id
+            existing_repository = session.query(RepositoryORM).filter(
+                RepositoryORM.id == body.id,
+                RepositoryORM.created_by_id == current_user.id,
+                RepositoryORM.deleted == False,
+                RepositoryORM.agents.any(AgentORM.deleted == False),
+            ).first()
 
-            logging.info(f"Repository {existing_repository.id} updated with new agents.")
-        else:
-            repository = RepositoryORM(
-                id=body.id,
-                user_id=current_user.id,
-                created_by_id=current_user.id,
-                updated_by_id=current_user.id,
-                agents=new_agents,
-                branches=branches,
-                webhooks=webhook_orms,
-            )
-            session.add(repository)
-            logging.info(f"Repository {repository.id} created.")
+            existing_repository.agents = [agent for agent in existing_repository.agents if not agent.deleted]
 
-        session.commit()
-        return ResponseModel(message="Repository created successfully.")
+            new_agents = [
+                AgentORM(
+                    name=agent.name,
+                    repository_id=body.id,
+                    function=agent.function,
+                    response_length=agent.response_length,
+                    ai_model_id=agent.ai_model_id,
+                    created_by_id=current_user.id,
+                    updated_by_id=current_user.id,
+                )
+                for agent in body.agents
+            ]
+
+            branches = [
+                BranchORM(name=branch, repository_id=body.id, created_by_id=current_user.id)
+                for branch in body.branches
+            ]
+
+            for agent in new_agents:
+                webhooks += await APIGithub.create_webhooks(
+                    token,
+                    repo_id=body.id,
+                    agent_function=agent.function
+                )
+
+            webhook_orms = [
+                RepositoryWebhookORM(
+                    id=webhook.id,
+                    repository_id=body.id
+                )
+                for webhook in webhooks
+            ]
+
+            if existing_repository:
+                existing_repository.agents.extend(new_agents)
+                existing_repository.webhooks.extend(webhook_orms)
+                existing_repository.updated_by_id = current_user.id
+
+                logging.info(f"Repository {existing_repository.id} updated with new agents.")
+            else:
+                repository = RepositoryORM(
+                    id=body.id,
+                    user_id=current_user.id,
+                    created_by_id=current_user.id,
+                    updated_by_id=current_user.id,
+                    agents=new_agents,
+                    branches=branches,
+                    webhooks=webhook_orms,
+                )
+                session.add(repository)
+                logging.info(f"Repository {repository.id} created.")
+
+            session.commit()
+            return ResponseModel(message="Repository created successfully.")
 
     except Exception as error:
         # Clean up webhooks on error
