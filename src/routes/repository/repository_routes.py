@@ -63,11 +63,11 @@ async def get_repository(
         )
         repository.agents = [
             Agent(**agent.__dict__, repository=None, operations=[])
-            for agent in repository_orm.agents
+            for agent in repository_orm.agents if not agent.deleted
         ]
         repository.webhooks = [
             RepositoryWebhook(**webhook.__dict__, repository=None)
-            for webhook in repository_orm.webhooks
+            for webhook in repository_orm.webhooks if not webhook.deleted
         ]
 
         return RepositoryResponse(message="Repository retrieved successfully.", repository=repository)
@@ -116,11 +116,11 @@ async def list_repositories(
             repository.created_at = repo.created_at
             repository.agents = [
                 Agent(**agent.__dict__, repository=None, operations=[])
-                for agent in repo.agents
+                for agent in repo.agents if not agent.deleted
             ]
             repository.webhooks = [
                 RepositoryWebhook(**webhook.__dict__, repository=None)
-                for webhook in repo.webhooks
+                for webhook in repo.webhooks if not webhook.deleted
             ]
             repositories.append(repository)
 
@@ -164,6 +164,17 @@ async def list_available_repositories(
             RepositoryORM.deleted == False,
             RepositoryORM.agents.any(AgentORM.deleted == False),
         ).all()
+
+        if not repositories_orm:
+            return ListRepositoryAvailableResponse(
+                message="No repositories found.",
+                repositories=[]
+            )
+        for repo in repositories_orm:
+            repo.agents = [
+                Agent(**agent.__dict__, repository=None, operations=[])
+                for agent in repo.agents if not agent.deleted
+            ]
 
         repositories = []
         for repo in repositories_github:
@@ -252,6 +263,8 @@ async def create_repository(
             RepositoryORM.deleted == False,
             RepositoryORM.agents.any(AgentORM.deleted == False),
         ).first()
+
+        existing_repository.agents = [agent for agent in existing_repository.agents if not agent.deleted]
 
         new_agents = [
             AgentORM(
