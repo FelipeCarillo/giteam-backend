@@ -320,7 +320,7 @@ class APIGithub:
                 headers={"Authorization": f"token {token}"},
             )
             webhook_response.raise_for_status()
-            return webhook_response.json()
+
 
     @staticmethod
     @handle_github_api_exceptions

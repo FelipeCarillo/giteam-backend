@@ -120,7 +120,7 @@ async def list_repositories(
             ]
             repository.webhooks = [
                 RepositoryWebhook(**webhook.__dict__, repository=None)
-                for webhook in repo.webhooks if not webhook.deleted
+                for webhook in repo.webhooks
             ]
             repositories.append(repository)
 
