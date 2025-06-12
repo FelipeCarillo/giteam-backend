@@ -170,16 +170,13 @@ async def list_available_repositories(
                 message="No repositories found.",
                 repositories=[]
             )
-        for repo in repositories_orm:
-            repo.agents = [
-                Agent(**agent.__dict__, repository=None, operations=[])
-                for agent in repo.agents if not agent.deleted
-            ]
 
         repositories = []
         for repo in repositories_github:
             repo_orm = next((r for r in repositories_orm if r.id == repo["id"]), None)
-            if repo_orm and (len(repo_orm.agents) == 2 or repo_orm.agents[0].function == AgentFunction.BOTH):
+            agents = [agent for agent in repo_orm.agents if not agent.deleted] if repo_orm else []
+            if repo_orm and (len(agents) == 2 or
+                             (len(agents) == 1 and agents[0].function == AgentFunction.BOTH)):
                 continue
             repositories.append(
                 AvailableRepositoryResponse(
