@@ -40,8 +40,8 @@ def lambda_handler(event, context):
 
         event_type = "pull_request" if 'pull_request' in github_event else \
             "issues" if 'issue' in github_event else \
-            "issue_comment" if 'comment' in github_event else \
-            'unknown'
+                "issue_comment" if 'comment' in github_event else \
+                    'unknown'
         if event_type not in ['pull_request', 'issues', 'issue_comment']:
             logger.error(f"Unsupported event type: {event_type}")
             return {"statusCode": 400, "body": "Unsupported event type"}
@@ -124,6 +124,14 @@ def lambda_handler(event, context):
 
                 cost_history = CostHistoryORM(**payload)
                 session.add(cost_history)
+            else:
+                if github_event.get('event_type') == 'pull_request':
+                    cost_history.pr_cost += operation.cost
+                else:
+                    cost_history.issue_cost += operation.cost
+                cost_history.total_cost += operation.cost
+            session.commit()
+            logger.info(f"Cost history updated for user {user.id} for month {month}")
 
             operation_orm = OperationORM(
                 agent_id=operation.agent_id,

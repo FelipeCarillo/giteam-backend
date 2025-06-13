@@ -67,7 +67,7 @@ async def get_repository(
         ]
         repository.webhooks = [
             RepositoryWebhook(**webhook.__dict__, repository=None)
-            for webhook in repository_orm.webhooks if not webhook.deleted
+            for webhook in repository_orm.webhooks if not webhook.active
         ]
 
         return RepositoryResponse(message="Repository retrieved successfully.", repository=repository)
