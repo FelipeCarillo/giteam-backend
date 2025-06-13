@@ -165,12 +165,6 @@ async def list_available_repositories(
             RepositoryORM.agents.any(AgentORM.deleted == False),
         ).all()
 
-        if not repositories_orm:
-            return ListRepositoryAvailableResponse(
-                message="No repositories found.",
-                repositories=[]
-            )
-
         repositories = []
         for repo in repositories_github:
             repo_orm = next((r for r in repositories_orm if r.id == repo["id"]), None)
@@ -290,7 +284,8 @@ async def create_repository(
             webhook_orms = [
                 RepositoryWebhookORM(
                     id=webhook.id,
-                    repository_id=body.id
+                    repository_id=body.id,
+                    secret=webhook.secret,
                 )
                 for webhook in webhooks
             ]

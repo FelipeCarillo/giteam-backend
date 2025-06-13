@@ -1,12 +1,12 @@
 import json
 import traceback
 
-import httpx
 from datetime import datetime, UTC
 from typing import Dict, Any, List, Tuple
 
-from openai import AsyncOpenAI
-from anthropic import AsyncAnthropic
+import requests
+from openai import OpenAI
+from anthropic import Anthropic
 
 from entities.entities import Agent, AIModel, Operation
 from helpers.enums import AgentFunction, AgentResponseLength, AIModelProvider, WebhookEventType
@@ -22,7 +22,7 @@ class GitHubAIAgent:
         self.openai_api_key = openai_api_key
         self.anthropic_api_key = anthropic_api_key
 
-    async def process_github_event(self, event_data: Dict[str, Any], agent: Agent) -> Operation:
+    def process_github_event(self, event_data: Dict[str, Any], agent: Agent) -> Operation:
         """
         Processa um evento do GitHub (issue ou pull request) e gera uma resposta de IA
 
@@ -40,15 +40,15 @@ class GitHubAIAgent:
             if not self._can_process_event(agent.function, event_type):
                 raise ValueError(f"Agente não configurado para processar eventos do tipo {event_type.value}")
 
-            context = await self._extract_event_context(event_data, event_type)
+            context = self._extract_event_context(event_data, event_type)
 
             prompt = self._generate_prompt(context, event_type, agent.response_length)
 
-            ai_response, tokens_used, cost = await self._call_ai_model(
+            ai_response, tokens_used, cost = self._call_ai_model(
                 prompt, agent.ai_model, context
             )
 
-            github_reference = await self._post_github_response(
+            github_reference = self._post_github_response(
                 event_data, ai_response, event_type
             )
 
@@ -103,7 +103,7 @@ class GitHubAIAgent:
             return True
         return False
 
-    async def _extract_event_context(self, event_data: Dict[str, Any], event_type: WebhookEventType) -> Dict[str, Any]:
+    def _extract_event_context(self, event_data: Dict[str, Any], event_type: WebhookEventType) -> Dict[str, Any]:
         """Extrai informações relevantes do evento para análise"""
         context = {
             "repository_name": event_data["repository"]["full_name"],
@@ -125,8 +125,8 @@ class GitHubAIAgent:
                 "url": pr["html_url"]
             })
 
-            context["code_changes"] = await self._get_pr_code_changes(context["repository_name"], pr["number"])
-            context["files_changed"] = await self._get_pr_files_list(context["repository_name"], pr["number"])
+            context["code_changes"] = self._get_pr_code_changes(context["repository_name"], pr["number"])
+            context["files_changed"] = self._get_pr_files_list(context["repository_name"], pr["number"])
 
         elif event_type == WebhookEventType.ISSUE:
             issue = event_data["issue"]
@@ -140,7 +140,7 @@ class GitHubAIAgent:
                 "url": issue["html_url"]
             })
 
-            context["relevant_code"] = await self._get_issue_relevant_code(context["repository_name"], issue)
+            context["relevant_code"] = self._get_issue_relevant_code(context["repository_name"], issue)
 
         return context
 
@@ -224,17 +224,17 @@ Por favor, forneça uma análise que inclua:
 Use um tom profissional e prestativo. Formate sua resposta em Markdown.
 """
 
-    async def _call_ai_model(self, prompt: str, ai_model: AIModel, context: Dict[str, Any]) -> Tuple[
+    def _call_ai_model(self, prompt: str, ai_model: AIModel, context: Dict[str, Any]) -> Tuple[
         str, Dict[str, int], float]:
         """Chama o modelo de IA configurado (OpenAI ou Anthropic)"""
         if ai_model.provider == AIModelProvider.OPENAI:
-            return await self._call_openai(prompt, ai_model, context)
+            return self._call_openai(prompt, ai_model, context)
         elif ai_model.provider == AIModelProvider.ANTHROPIC:
-            return await self._call_anthropic(prompt, ai_model, context)
+            return self._call_anthropic(prompt, ai_model, context)
         else:
             raise ValueError(f"Provedor de IA {ai_model.provider} não suportado")
 
-    async def _call_openai(self, prompt: str, ai_model: AIModel, context: Dict[str, Any]) -> Tuple[
+    def _call_openai(self, prompt: str, ai_model: AIModel, context: Dict[str, Any]) -> Tuple[
         str, Dict[str, int], float]:
         """Chama a API da OpenAI usando a biblioteca oficial"""
 
@@ -252,7 +252,7 @@ Use um tom profissional e prestativo. Formate sua resposta em Markdown.
 
         try:
             # Fazer chamada para a API
-            completion = await AsyncOpenAI(api_key=self.openai_api_key).chat.completions.create(
+            completion = OpenAI(api_key=self.openai_api_key).chat.completions.create(
                 model=ai_model.name,
                 messages=[
                     {"role": "user", "content": prompt}
@@ -282,7 +282,7 @@ Use um tom profissional e prestativo. Formate sua resposta em Markdown.
         except Exception as e:
             raise Exception(f"Erro ao chamar OpenAI API: {str(e)}")
 
-    async def _call_anthropic(self, prompt: str, ai_model: AIModel, context: Dict[str, Any]) -> Tuple[
+    def _call_anthropic(self, prompt: str, ai_model: AIModel, context: Dict[str, Any]) -> Tuple[
         str, Dict[str, int], float]:
         """Chama a API da Anthropic usando a biblioteca oficial"""
 
@@ -300,7 +300,7 @@ Use um tom profissional e prestativo. Formate sua resposta em Markdown.
 
         try:
             # Fazer chamada para a API
-            message = await AsyncAnthropic(api_key=self.anthropic_api_key).messages.create(
+            message = Anthropic(api_key=self.anthropic_api_key).messages.create(
                 model=ai_model.name,
                 max_tokens=max_tokens,
                 temperature=0.3,
@@ -333,7 +333,7 @@ Use um tom profissional e prestativo. Formate sua resposta em Markdown.
         except Exception as e:
             raise Exception(f"Erro ao chamar Anthropic API: {str(e)}")
 
-    async def _post_github_response(self, event_data: Dict[str, Any], ai_response: str,
+    def _post_github_response(self, event_data: Dict[str, Any], ai_response: str,
                                     event_type: WebhookEventType) -> str:
         """Posta a resposta da IA no GitHub como comentário"""
 
@@ -348,73 +348,70 @@ Use um tom profissional e prestativo. Formate sua resposta em Markdown.
 
         formatted_response = f"{ai_response}\n\n---\n*Análise gerada automaticamente por IA* 🤖"
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url,
-                headers={
-                    "Authorization": f"token {self.github_token}",
-                    "Accept": "application/vnd.github.v3+json"
-                },
-                json={"body": formatted_response}
-            )
+        response = requests.post(
+            url,
+            headers={
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json"
+            },
+            json={"body": formatted_response}
+        )
 
-            response.raise_for_status()
-            comment_data = response.json()
+        response.raise_for_status()
+        comment_data = response.json()
 
-            return comment_data["html_url"]
+        return comment_data["html_url"]
 
-    async def _get_pr_code_changes(self, repo_full_name: str, pr_number: int) -> str:
+    def _get_pr_code_changes(self, repo_full_name: str, pr_number: int) -> str:
         """Busca as mudanças de código do Pull Request"""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}",
-                    headers={
-                        "Authorization": f"token {self.github_token}",
-                        "Accept": "application/vnd.github.v3.diff"
-                    }
-                )
+            response = requests.get(
+                f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}",
+                headers={
+                    "Authorization": f"token {self.github_token}",
+                    "Accept": "application/vnd.github.v3.diff"
+                }
+            )
 
-                if response.status_code == 200:
-                    diff_content = response.text
-                    if len(diff_content) > 15000:  # ~15k caracteres
-                        return diff_content[:15000] + "\n\n... (diff truncado devido ao tamanho)"
-                    return diff_content
-                else:
-                    return "Não foi possível recuperar as mudanças de código."
+            if response.status_code == 200:
+                diff_content = response.text
+                if len(diff_content) > 15000:  # ~15k caracteres
+                    return diff_content[:15000] + "\n\n... (diff truncado devido ao tamanho)"
+                return diff_content
+            else:
+                return "Não foi possível recuperar as mudanças de código."
 
         except Exception as e:
             return f"Erro ao buscar mudanças: {str(e)}"
 
-    async def _get_pr_files_list(self, repo_full_name: str, pr_number: int) -> List[Dict[str, Any]]:
+    def _get_pr_files_list(self, repo_full_name: str, pr_number: int) -> List[Dict[str, Any]]:
         """Busca a lista de arquivos modificados no PR"""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}/files",
-                    headers={
-                        "Authorization": f"token {self.github_token}",
-                        "Accept": "application/vnd.github.v3+json"
-                    }
-                )
+            response = requests.get(
+                f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}/files",
+                headers={
+                    "Authorization": f"token {self.github_token}",
+                    "Accept": "application/vnd.github.v3+json"
+                }
+            )
 
-                if response.status_code == 200:
-                    files = response.json()
-                    return [{
-                        "filename": file["filename"],
-                        "status": file["status"],
-                        "additions": file["additions"],
-                        "deletions": file["deletions"],
-                        "changes": file["changes"]
-                    } for file in files]
-                else:
-                    return []
+            if response.status_code == 200:
+                files = response.json()
+                return [{
+                    "filename": file["filename"],
+                    "status": file["status"],
+                    "additions": file["additions"],
+                    "deletions": file["deletions"],
+                    "changes": file["changes"]
+                } for file in files]
+            else:
+                return []
 
         except Exception:
             traceback.print_exc()
             return []
 
-    async def _get_issue_relevant_code(self, repo_full_name: str, issue: Dict[str, Any]) -> str:
+    def _get_issue_relevant_code(self, repo_full_name: str, issue: Dict[str, Any]) -> str:
         """Tenta identificar e buscar código relevante para a issue"""
         try:
             import re
@@ -443,31 +440,30 @@ Use um tom profissional e prestativo. Formate sua resposta em Markdown.
 
             code_snippets = []
 
-            async with httpx.AsyncClient() as client:
-                for file_path in potential_files[:3]:
-                    try:
-                        response = await client.get(
-                            f"https://api.github.com/repos/{repo_full_name}/contents/{file_path}",
-                            headers={
-                                "Authorization": f"token {self.github_token}",
-                                "Accept": "application/vnd.github.v3+json"
-                            }
-                        )
+            for file_path in potential_files[:3]:
+                try:
+                    response = requests.get(
+                        f"https://api.github.com/repos/{repo_full_name}/contents/{file_path}",
+                        headers={
+                            "Authorization": f"token {self.github_token}",
+                            "Accept": "application/vnd.github.v3+json"
+                        }
+                    )
 
-                        if response.status_code == 200:
-                            file_data = response.json()
-                            if file_data.get("encoding") == "base64":
-                                import base64
-                                content = base64.b64decode(file_data["content"]).decode('utf-8')
+                    if response.status_code == 200:
+                        file_data = response.json()
+                        if file_data.get("encoding") == "base64":
+                            import base64
+                            content = base64.b64decode(file_data["content"]).decode('utf-8')
 
-                                # Limita o tamanho do arquivo
-                                if len(content) > 5000:
-                                    content = content[:5000] + "\n... (arquivo truncado)"
+                            # Limita o tamanho do arquivo
+                            if len(content) > 5000:
+                                content = content[:5000] + "\n... (arquivo truncado)"
 
-                                code_snippets.append(f"**{file_path}:**\n```\n{content}\n```")
+                            code_snippets.append(f"**{file_path}:**\n```\n{content}\n```")
 
-                    except Exception:
-                        continue
+                except Exception:
+                    continue
 
             if code_snippets:
                 return "\n\n".join(code_snippets[:2])

@@ -141,10 +141,7 @@ async def create_secret_key(
         session.add(secret_key_orm)
         session.commit()
 
-        return ProviderSecretKeyResponse(
-            message="Secret key created successfully.",
-            provider_secret_key=[ProviderSecretKeySchema(**secret_key_orm.__dict__)]
-        )
+        return ResponseModel(message="Secret key created successfully.")
     except Exception as error:
         raise error
     finally:
@@ -169,7 +166,10 @@ async def get_secret_keys(
         ).all()
 
         if not secret_keys:
-            return JSONResponse(status_code=204, content={"message": "No secret keys found."})
+            return ProviderSecretKeyResponse(
+                message="No secret keys found for the user.",
+                provider_secret_key=[]
+            )
 
         secret_keys_list = [ProviderSecretKeySchema(**secret_key.__dict__) for secret_key in secret_keys]
 

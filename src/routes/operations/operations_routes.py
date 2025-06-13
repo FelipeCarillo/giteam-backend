@@ -44,7 +44,7 @@ async def get_operations(
         operations = []
         for operation_orm in operations_orm:
             agent = Agent(**operation_orm.agent.__dict__)
-            repository = await api_github.get_repository(token, repo_id=operation_orm.repository_id)
+            repository = await api_github.get_repository(token, repo_id=operation_orm.agent.repository_id)
             operation = OperationDetails(
                 id=operation_orm.id,
                 agent=agent,

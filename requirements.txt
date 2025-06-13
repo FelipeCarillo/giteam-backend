@@ -1,15 +1,13 @@
-httpx
-PyJWT
-pytest
+fastapi
 Authlib
-uvicorn
 requests
-pydantic
-psycopg2
-starlette
 sqlalchemy
-fastapi[all]
 python-dotenv
+psycopg2-binary
+
+pydantic
+pydantic-core
+pydantic[email]
 
 openai
 anthropic

@@ -26,8 +26,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     session = db.get_session()
 
     user_orm: UserORM = session.query(UserORM).filter(
-        UserORM.deleted == False and
-        UserORM.provider_id == str(user['id'])
+        UserORM.provider_id == str(user['id']),
+        UserORM.deleted == False
     ).first()
 
     if user_orm is None:
