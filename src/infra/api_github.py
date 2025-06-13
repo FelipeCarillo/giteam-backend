@@ -100,7 +100,10 @@ class APIGithub:
 
     @staticmethod
     @handle_github_api_exceptions
-    async def get_repository(token: str, repo_id: int, branches_name: List[str]) -> Repository:
+    async def get_repository(token: str, repo_id: int, branches_name: List[str] = None) -> Repository:
+        if not branches_name:
+            branches_name = []
+
         async with httpx.AsyncClient() as client:
             repo_response = await client.get(
                 f"https://api.github.com/repositories/{repo_id}",
@@ -320,7 +323,6 @@ class APIGithub:
                 headers={"Authorization": f"token {token}"},
             )
             webhook_response.raise_for_status()
-
 
     @staticmethod
     @handle_github_api_exceptions
