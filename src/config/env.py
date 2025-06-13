@@ -20,15 +20,11 @@ class Env(BaseModel):
     # Frontend
     FRONTEND_URL: str = os.getenv("FRONTEND_URL")
 
-    # API URL
-    API_URL: str = os.getenv("API_URL", "http://localhost:8000")
-
-    # JWT
-    SECRET_KEY: str = os.getenv("SECRET_KEY")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+    # QUEUE_URL
+    QUEUE_URL: str = os.getenv("QUEUE_URL")
 
     # Agent Webhook
-    AGENT_WEBHOOK_URL: str = os.getenv("AGENT_WEBHOOK_URL", "http://adawdadsfvdsf.com/webhook")
+    AGENT_WEBHOOK_URL: str = os.getenv("AGENT_WEBHOOK_URL")
 
 
 env = Env()
