@@ -1,0 +1,15 @@
+httpx
+PyJWT
+pytest
+Authlib
+uvicorn
+requests
+pydantic
+psycopg2
+starlette
+sqlalchemy
+fastapi[all]
+python-dotenv
+
+openai
+anthropic
