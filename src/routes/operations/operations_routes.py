@@ -23,7 +23,6 @@ operation_router = APIRouter(
 @handle_exceptions
 @operation_router.get("/", status_code=status.HTTP_200_OK, response_model=ListOperationsResponse)
 async def get_operations(
-        agent_id: Optional[int] = None,
         current_user: User = Depends(get_current_active_user),
 ):
     """List all operations, optionally filtered by agent_id."""
@@ -31,75 +30,31 @@ async def get_operations(
     session = db.get_session()
 
     try:
-        # Use joinedload para carregar as relações necessárias em uma única consulta
-        query = session.query(OperationORM).options(
-            joinedload(OperationORM.agent).joinedload(AgentORM.repository),
-            joinedload(OperationORM.agent).joinedload(AgentORM.ai_model)
-        )
 
-        if agent_id:
-            query = query.filter(OperationORM.agent_id == agent_id)
+        operations_orm = session.query(OperationORM).filter(
+            OperationORM.agent.has(AgentORM.created_by_id == current_user.id),
+        ).all()
 
-        operations_orm = query.all()
+        if not operations_orm:
+            return ListOperationsResponse(
+                message="No operations found.",
+                operations=[]
+            )
 
-        # Converter objetos ORM para entidades Pydantic
         operations = []
         for operation_orm in operations_orm:
-            operation_dict = {k: v for k, v in operation_orm.__dict__.items() if not k.startswith('_')}
+            operation = Operation(**operation_orm.__dict__)
 
-            # Processar o agente e seus relacionamentos
             if operation_orm.agent:
-                agent_orm = operation_orm.agent
-                agent_dict = {k: v for k, v in agent_orm.__dict__.items() if not k.startswith('_')}
+                agent_dict = operation_orm.agent.__dict__.copy()
+                agent_dict["created_by"] = User(**operation_orm.agent.created_by.__dict__)
+                agent_dict["repository"] = Repository(**operation_orm.agent.repository.__dict__)
+                agent_dict["ai_model"] = AIModel(**operation_orm.agent.ai_model.__dict__)
+                operation.agent = Agent(**agent_dict)
 
-                # Processar o repositório
-                if agent_orm.repository:
-                    repo_orm = agent_orm.repository
-                    # Garantir que todos os campos necessários do modelo Repository estejam presentes
-                    repo_dict = {
-                        "id": repo_orm.id,
-                        "owner_id": repo_orm.user_id,  # Mapeamento de user_id para owner_id
-                        "name": "default_name" if not hasattr(repo_orm, "name") else repo_orm.name,
-                        "full_name": "default_full_name" if not hasattr(repo_orm, "full_name") else repo_orm.full_name,
-                        "private": False if not hasattr(repo_orm, "private") else repo_orm.private,
-                        "url": "default_url" if not hasattr(repo_orm, "url") else repo_orm.url,
-                        "created_at": repo_orm.created_at,
-                        "agents": [],
-                        "branches": [],
-                        "webhooks": []
-                    }
-                    repository = Repository(**repo_dict)
-                else:
-                    repository = None
-
-                # Processar o modelo de IA
-                if agent_orm.ai_model:
-                    ai_model_orm = agent_orm.ai_model
-                    ai_model_dict = {k: v for k, v in ai_model_orm.__dict__.items() if not k.startswith('_')}
-
-                    # Ajustar o campo specialties se necessário
-                    if hasattr(ai_model_orm, "specialties_us") and not hasattr(ai_model_orm, "specialties"):
-                        ai_model_dict["specialties"] = ai_model_orm.specialties_us
-                    elif not hasattr(ai_model_orm, "specialties"):
-                        ai_model_dict["specialties"] = ""
-
-                    ai_model = AIModel(**ai_model_dict)
-                else:
-                    ai_model = None
-
-                # Criar o agente com seus relacionamentos
-                agent_dict["repository"] = repository
-                agent_dict["ai_model"] = ai_model
-                agent = Agent(**agent_dict)
-
-                # Adicionar o agente à operação
-                operation_dict["agent"] = agent
-            else:
-                operation_dict["agent"] = None
-
-            # Criar a operação e adicioná-la à lista
-            operation = Operation(**operation_dict)
             operations.append(operation)
+
+        operations.sort(key=lambda x: x.created_at, reverse=True)
 
         return ListOperationsResponse(
             message="Operations retrieved successfully." if operations else "No operations found.",

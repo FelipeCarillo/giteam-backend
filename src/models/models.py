@@ -169,7 +169,6 @@ class Operation(Base):
     id = Column(Integer, primary_key=True)
     agent_id = Column(Integer, ForeignKey('agents.id'), nullable=False)
     action = Column(String(100), nullable=False)  # 'PR Review', 'Issue Resolution'
-    # action = Column(String(100), nullable=False)
     details = Column(String(255))
     github_reference = Column(String(100))  # Número do PR ou Issue
     prompt_tokens = Column(Integer)  # Tokens de entrada (prompt)

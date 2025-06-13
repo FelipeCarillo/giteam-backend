@@ -1,5 +1,6 @@
 httpx
 PyJWT
+pytest
 Authlib
 uvicorn
 requests
