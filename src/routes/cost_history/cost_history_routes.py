@@ -31,19 +31,7 @@ async def get_cost_history(
             CostHistoryORM.user_id == current_user.id
         ).all()
 
-        cost_history = []
-        for record in cost_histories_orm:
-            cost_hist = CostHistory(**record.__dict__)
-
-            if record.user:
-                user_dict = record.user.__dict__.copy()
-
-                if record.user.settings:
-                    user_dict["settings"] = record.user.settings.__dict__
-
-                cost_hist.user = User(**user_dict)
-
-            cost_history.append(cost_hist)
+        cost_history = [CostHistory(**record.__dict__) for record in cost_histories_orm]
 
         return ListCostHistoryResponse(
             message="Cost history retrieved successfully." if cost_history else "No cost history found.",
