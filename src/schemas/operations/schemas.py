@@ -17,6 +17,7 @@ class OperationDetails(BaseModel):
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
+    cost: float
     execution_time: Optional[float] = None
     created_at: str
 

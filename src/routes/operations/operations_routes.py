@@ -54,6 +54,7 @@ async def get_operations(
                 status=operation_orm.status,
                 github_reference=operation_orm.github_reference,
                 prompt_tokens=operation_orm.prompt_tokens,
+                cost=operation_orm.cost,
                 completion_tokens=operation_orm.completion_tokens,
                 total_tokens=operation_orm.total_tokens,
                 execution_time=operation_orm.execution_time,
