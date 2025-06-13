@@ -51,8 +51,13 @@ async def get_operations(
                 repository=repository,
                 action=operation_orm.action,
                 details=operation_orm.details,
+                status=operation_orm.status,
+                github_reference=operation_orm.github_reference,
+                prompt_tokens=operation_orm.prompt_tokens,
+                completion_tokens=operation_orm.completion_tokens,
+                total_tokens=operation_orm.total_tokens,
+                execution_time=operation_orm.execution_time,
                 created_at=operation_orm.created_at.isoformat(),
-                updated_at=operation_orm.updated_at.isoformat() if operation_orm.updated_at else None
             )
             operations.append(operation)
 

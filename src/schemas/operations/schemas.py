@@ -10,10 +10,15 @@ class OperationDetails(BaseModel):
     id: int
     agent: Agent
     repository: Repository
-    action: str
     details: Optional[str] = None
+    action: str
+    status: str
+    github_reference: Optional[str] = None
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    execution_time: Optional[float] = None
     created_at: str
-    updated_at: Optional[str] = None
 
     class Config:
         from_attributes = True
