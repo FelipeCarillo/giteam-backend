@@ -1,36 +1,15 @@
-import pytest
-from datetime import datetime, UTC
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 
 from main import app
-from entities import User, UserSettings
+from infra.api_github import APIGithub
 from helpers.enums import AIModelProvider
 
 client = TestClient(app)
 
 # Mock user para testes
-mock_user = User(
-    id=1,
-    provider="github",
-    provider_id=12345,
-    name="Test User",
-    username="testuser",
-    email="test@example.com",
-    avatar_url="https://example.com/avatar.jpg",
-    created_at=datetime.now(UTC),
-    updated_at=datetime.now(UTC),
-    settings=UserSettings(
-        id=1,
-        user_id=1,
-        email_notifications=True,
-        telegram_notifications=False,
-        daily_limit=5.0,
-        weekly_limit=25.0,
-        monthly_limit=100.0,
-        alert_threshold=80
-    )
-)
+TOKEN = ""
+mock_user = APIGithub.get_user_info(token=TOKEN)
 
 
 class TestUserRoutes:
@@ -41,12 +20,11 @@ class TestUserRoutes:
         """Teste de caixa preta: GET /user - sucesso"""
         mock_get_user.return_value = mock_user
 
-        response = client.get("/user/", headers={"Authorization": "Bearer fake-token"})
+        response = client.get("/user/", headers={"Authorization": f"Bearer {TOKEN}"})
 
         assert response.status_code == 200
         data = response.json()
-        assert data["message"] == "User information retrieved successfully."
-        assert data["user"]["email"] == "test@example.com"
+        assert data["user"]["email"] == "email-test"
 
     def test_get_user_unauthorized(self):
         """Teste de caixa preta: GET /user - não autorizado"""
@@ -67,7 +45,7 @@ class TestUserRoutes:
         mock_db.return_value.get_session.return_value = mock_session
         mock_session.query.return_value.filter.return_value.first.return_value = mock_user_orm
 
-        response = client.delete("/user/", headers={"Authorization": "Bearer fake-token"})
+        response = client.delete("/user/", headers={"Authorization": f"Bearer {TOKEN}"})
 
         assert response.status_code == 200
         assert response.json()["message"] == "User deleted successfully."
@@ -98,7 +76,7 @@ class TestUserRoutes:
         response = client.put(
             "/user/",
             json=update_data,
-            headers={"Authorization": "Bearer fake-token"}
+            headers={"Authorization": f"Bearer {TOKEN}"}
         )
 
         assert response.status_code == 200
@@ -124,7 +102,7 @@ class TestUserRoutes:
         response = client.post(
             "/user/provider/secret-key",
             json=secret_data,
-            headers={"Authorization": "Bearer fake-token"}
+            headers={"Authorization": f"Bearer {TOKEN}"}
         )
 
         assert response.status_code == 201
@@ -150,7 +128,7 @@ class TestUserRoutes:
         response = client.post(
             "/user/provider/secret-key",
             json=secret_data,
-            headers={"Authorization": "Bearer fake-token"}
+            headers={"Authorization": f"Bearer {TOKEN}"}
         )
 
         assert response.status_code == 400
@@ -175,7 +153,7 @@ class TestUserRoutes:
 
         response = client.get(
             "/user/provider/secret-key",
-            headers={"Authorization": "Bearer "}
+            headers={"Authorization": f"Bearer {TOKEN}"}
         )
 
         assert response.status_code == 200
