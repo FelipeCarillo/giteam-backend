@@ -1,29 +1,24 @@
-from typing import List, Optional
 from pydantic import BaseModel
+from typing import List, Optional
 
-from entities import Operation
+from entities import Agent, Repository
 from schemas.http import ResponseModel
-
-
-class ListOperationsResponse(ResponseModel):
-    """Response model for operations list endpoint."""
-    operations: Optional[List[Operation]] = None
 
 
 class OperationDetails(BaseModel):
     """Response model for operation details."""
     id: int
-    agent_id: int
+    agent: Agent
+    repository: Repository
     action: str
     details: Optional[str] = None
-    github_reference: Optional[str] = None
-    prompt_tokens: Optional[int] = None
-    completion_tokens: Optional[int] = None
-    total_tokens: Optional[int] = None
-    cost: float
-    status: str
-    execution_time: Optional[float] = None
-    created_at: Optional[str] = None
+    created_at: str
+    updated_at: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class ListOperationsResponse(ResponseModel):
+    """Response model for operations list endpoint."""
+    operations: Optional[List[OperationDetails]] = None
